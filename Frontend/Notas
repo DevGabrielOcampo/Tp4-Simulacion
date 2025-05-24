@@ -1,0 +1,10 @@
+${tiempoMinimoInscripcion},
+${tiempoMaximoInscripcion},
+${mediaLlegada},
+${tiempoMinimoMantenimiento},
+${tiempoMaximoMantenimiento},
+${minutosBaseTecnico},
+${minutosRangoTecnico},
+${minutosSimulacion},
+${minutoDesde},
+${iteracione}
