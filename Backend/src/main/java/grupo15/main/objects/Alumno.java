@@ -22,6 +22,62 @@ public class Alumno implements Cloneable {
     // Parámetros para la distribucion exponencial negativa
     private Float media;
 
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public EstadoAlumno getEstado() {
+        return estado;
+    }
+
+    public void setEstado(EstadoAlumno estado) {
+        this.estado = estado;
+    }
+
+    public Float getRandomLlegada() {
+        return randomLlegada;
+    }
+
+    public void setRandomLlegada(Float randomLlegada) {
+        this.randomLlegada = randomLlegada;
+    }
+
+    public Float getDuracionLlegada() {
+        return duracionLlegada;
+    }
+
+    public void setDuracionLlegada(Float duracionLlegada) {
+        this.duracionLlegada = duracionLlegada;
+    }
+
+    public Float getTiempoLlegada() {
+        return tiempoLlegada;
+    }
+
+    public void setTiempoLlegada(Float tiempoLlegada) {
+        this.tiempoLlegada = tiempoLlegada;
+    }
+
+    public Pc getPcEnUso() {
+        return pcEnUso;
+    }
+
+    public void setPcEnUso(Pc pcEnUso) {
+        this.pcEnUso = pcEnUso;
+    }
+
+    public Float getMedia() {
+        return media;
+    }
+
+    public void setMedia(Float media) {
+        this.media = media;
+    }
+
     @Override
     public Alumno clone() {
         try {

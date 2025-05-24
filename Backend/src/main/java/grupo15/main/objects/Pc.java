@@ -23,6 +23,71 @@ public class Pc implements Cloneable {
     private Float min;  // a
     private Float max;  // b
 
+    public Pc(Integer id, EstadoPc estado, Float random, Float duracionInscripcion, Float finInscripcion, Float min, Float max) {
+        this.id = id;
+        this.estado = estado;
+        this.random = random;
+        this.duracionInscripcion = duracionInscripcion;
+        this.finInscripcion = finInscripcion;
+        this.min = min;
+        this.max = max;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public EstadoPc getEstado() {
+        return estado;
+    }
+
+    public void setEstado(EstadoPc estado) {
+        this.estado = estado;
+    }
+
+    public Float getRandom() {
+        return random;
+    }
+
+    public void setRandom(Float random) {
+        this.random = random;
+    }
+
+    public Float getDuracionInscripcion() {
+        return duracionInscripcion;
+    }
+
+    public void setDuracionInscripcion(Float duracionInscripcion) {
+        this.duracionInscripcion = duracionInscripcion;
+    }
+
+    public Float getFinInscripcion() {
+        return finInscripcion;
+    }
+
+    public void setFinInscripcion(Float finInscripcion) {
+        this.finInscripcion = finInscripcion;
+    }
+
+    public Float getMin() {
+        return min;
+    }
+
+    public void setMin(Float min) {
+        this.min = min;
+    }
+
+    public Float getMax() {
+        return max;
+    }
+
+    public void setMax(Float max) {
+        this.max = max;
+    }
 
     @Override
     public Pc clone() {
