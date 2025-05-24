@@ -1,11 +1,9 @@
 package grupo15.main.controllers;
 // Forma parte del paquete grupo15.main.Controller
 
-import grupo15.main.utils.Generadores;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @CrossOrigin(origins = {"http://localhost:3000", "http://192.168.1.66:3000"})
