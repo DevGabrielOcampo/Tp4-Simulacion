@@ -1,6 +1,12 @@
 package grupo15.main.controllers;
 // Forma parte del paquete grupo15.main.Controller
 
+import grupo15.main.objects.Alumno;
+import grupo15.main.objects.Pc;
+import grupo15.main.objects.Tecnico;
+import grupo15.main.simulation.Simulacion;
+import grupo15.main.simulation.VectorEstado;
+import grupo15.main.states.EstadoPc;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,21 +23,19 @@ public class Controller {
     // Recibe 4 floats, el primer representa la muestra, el segundo la distribucion, el tercero y cuarto los intervalos [A, B]
     // el quinto desviacion, el sexto media, el septimo lambda
     public ResponseEntity<List<Float>> recibirParametros(@PathVariable List<Float> datos) {
-        Float demora_inscripcion_a = 5.0f;
-        Float demora_inscripcion_b = 8.0f;
-        Float media_exponecial_llegada = 2.0f;
-        Float demora_mantenimiento_a = 3.0f;
-        Float demora_mantenimiento_b = 10f;
-        Float regreso_tecnico_base = 60.0f;
-        Float regreso_tecnico_rango = 3.0f;
+        Float minInscripcion = datos.get(0); // Parametro A de la distribuicion uniforme para las inscripciones
+        Float maxInscripcion = datos.get(1); // Parametro B de la distribuicion uniforme para las inscripciones
+        Float mediaExponencialNegativa = datos.get(2); // Media de la exponencial negativa de las llegada de los alumnos
+        Float minMantenimiento = datos.get(3); // Parametro A de la distribuicion uniforme del tiempo de mantenimiento
+        Float maxMantenimiento = datos.get(4); // Parametro B de la distribuicion uniforme del tiempo de mantenimiento
+        Float baseRegresoTecnico = datos.get(5); // Tiempo base de regreso del tecnico (1h)
+        Float rangoRegresoTecnico = datos.get(6); // Rango de regreso del tecnico (+-3min)
+        Float minutosSimulacion = datos.get(7);
+        Float minutosDesde = datos.get(8);
+        Float iteracionesMostrar = datos.get(9);
 
-        //demora_inscripcion_a = datos.get(0); // Parametro A de la distribuicion uniforme para las inscripciones
-        //demora_inscripcion_b = datos.get(1); // Parametro B de la distribuicion uniforme para las inscripciones
-        //media_exponecial_llegada = datos.get(2); // Media de la exponencial negativa de las llegada de los alumnos
-        //demora_mantenimiento_a = datos.get(3); // Parametro A de la distribuicion uniforme del tiempo de mantenimiento
-        //demora_mantenimiento_b = datos.get(4); // Parametro B de la distribuicion uniforme del tiempo de mantenimiento
-        //regreso_tecnico_base = datos.get(5); // Tiempo base de regreso del tecnico (1h)
-        //regreso_tecnico_rango = datos.get(6); // Rango de regreso del tecnico (+-3min)
+        Simulacion simulacion = new Simulacion(minInscripcion, maxInscripcion, mediaExponencialNegativa, minMantenimiento, maxMantenimiento, baseRegresoTecnico, rangoRegresoTecnico, minutosSimulacion, minutosDesde, iteracionesMostrar);
+        simulacion.ejecutar();
 
 
         return null;

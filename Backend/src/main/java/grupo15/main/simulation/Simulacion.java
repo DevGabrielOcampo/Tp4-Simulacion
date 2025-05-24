@@ -10,17 +10,11 @@ import java.util.Arrays;
 public class Simulacion {
     private VectorEstado estado;
 
-    public Simulacion() {
-        estado = inicializarEstado();
+    public Simulacion(Float minInscripcion, Float maxInscripcion, Float mediaExponencialNegativa, Float minMantenimiento, Float maxMantenimiento, Float baseRegresoTecnico, Float rangoRegresoTecnico, Float minutosSimulacion, Float minutosDesde, Float iteracionesMostrar) {
+        estado = inicializarEstado(minInscripcion, maxInscripcion, mediaExponencialNegativa, minMantenimiento, maxMantenimiento, baseRegresoTecnico, rangoRegresoTecnico, minutosSimulacion, minutosDesde, iteracionesMostrar);
     }
 
-    private VectorEstado inicializarEstado() {
-        float minInscripcion = 5f; // Despues modificar con los valores recibidos
-        float maxInscripcion = 8f; // Despues modificar con los valores recibidos
-        float minMantenimiento = 3f; // Despues modificar con los valores recibidos
-        float maxMantenimiento = 10f; // Despues modificar con los valores recibidos
-        float baseRegresoTecnico = 60f;
-        float rangoRegresoTecnico = 3f;
+    private VectorEstado inicializarEstado(Float minInscripcion, Float maxInscripcion, Float mediaExponencialNegativa, Float minMantenimiento, Float maxMantenimiento, Float baseRegresoTecnico, Float rangoRegresoTecnico, Float minutosSimulacion, Float minutosDesde, Float iteracionesMostrar) {
         // Crear las 5 PC iniciales
         Pc[] pcs = new Pc[5];
         for (int i = 0; i < 5; i++) {
@@ -102,12 +96,6 @@ public class Simulacion {
 
         System.out.println();
         System.out.println("======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================");
-    }
-
-
-    public static void main(String[] args) {
-        Simulacion simulacion = new Simulacion();
-        simulacion.ejecutar();
     }
 }
 

@@ -122,7 +122,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             minutosSimulacion,
             minutoDesde,
             iteraciones } = values;
-        const url = `http://localhost:8080/api/simulacion/${tiempoMinimoInscripcion},
+        const url = `http://localhost:8080/api/vector/${tiempoMinimoInscripcion},
                     ${tiempoMaximoInscripcion},
                     ${mediaLlegada},
                     ${tiempoMinimoMantenimiento},
