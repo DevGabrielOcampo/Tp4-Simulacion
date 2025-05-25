@@ -1,9 +1,11 @@
 package grupo15.main.objects;
 
 import grupo15.main.states.EstadoPc;
+import grupo15.main.states.EstadoTecnico;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Random;
 
 @Data
@@ -11,13 +13,12 @@ import java.util.Random;
 public class Tecnico implements Cloneable {
 
     @Builder.Default
-    private EstadoPc estado = EstadoPc.LIBRE;
+    private EstadoTecnico estado = EstadoTecnico.ESPERANDO_PARA_MANTENIMIENTO;
 
     // Parte relacionada con la llegada del tecnico
     private Random randomRegreso;
     private Float numRandomRegreso;
     private Float duracionDescanso;
-    private Float tiempoRegreso;
     // Parámetros para las distribucion de regreso
     private Float base;  // 1h
     private Float rango;  // +-3min
@@ -26,7 +27,6 @@ public class Tecnico implements Cloneable {
     private Random randomMantenimieto;
     private Float numRandomMantenimiento;
     private Float duracionMantenimiento;
-    private Float finMantenimiento;
     // Parámetros para las distribuciones uniformes en los mantenimientos
     private Float min;  // a
     private Float max;  // b
@@ -37,18 +37,35 @@ public class Tecnico implements Cloneable {
     private Float acumTiempoTotal;
     private Float promedioTiempoOcioso;
 
-    public Tecnico(EstadoPc estado, Float numRandomRegreso, Float duracionDescanso, Float tiempoRegreso, Float base, Float rango, Float numRandomMantenimiento, Float duracionMantenimiento, Float finMantenimiento, Float min, Float max, Pc ultimaPcMantenida, Float acumTiempoOcioso, Float acumTiempoTotal, Float promedioTiempoOcioso) {
+    public void iniciarMantenimiento(List<Pc> pcs, Integer numPcMantener) {
+        if(this.estado == EstadoTecnico.ESPERANDO_PARA_MANTENIMIENTO){
+            for (Pc pc : pcs) {
+                if (pc.getId() == numPcMantener && pc.getEstado() == EstadoPc.LIBRE) {
+                    calcularTiempoMantenimiento();
+                    this.ultimaPcMantenida = pc; // Asigna la PC al técnico
+                    this.estado = EstadoTecnico.EN_MANTENIMIENTO;
+                    pc.setEstado(EstadoPc.EN_MANTENIMIENTO); // Cambia el estado de la PC
+                    return;
+                }
+            }
+        }
+    }
+
+    public void calcularTiempoMantenimiento(){
+        this.numRandomMantenimiento = this.randomMantenimieto.nextFloat();
+        this.duracionMantenimiento = this.min + this.numRandomMantenimiento*(this.max-this.min);
+    }
+
+    public Tecnico(EstadoTecnico estado, Float numRandomRegreso, Float duracionDescanso, Float base, Float rango, Float numRandomMantenimiento, Float duracionMantenimiento, Float min, Float max, Pc ultimaPcMantenida, Float acumTiempoOcioso, Float acumTiempoTotal, Float promedioTiempoOcioso) {
         this.estado = estado;
         this.randomRegreso = new Random();
         this.numRandomRegreso = numRandomRegreso;
         this.duracionDescanso = duracionDescanso;
-        this.tiempoRegreso = tiempoRegreso;
         this.base = base;
         this.rango = rango;
         this.randomMantenimieto = new Random();
         this.numRandomMantenimiento = numRandomMantenimiento;
         this.duracionMantenimiento = duracionMantenimiento;
-        this.finMantenimiento = finMantenimiento;
         this.min = min;
         this.max = max;
         this.ultimaPcMantenida = ultimaPcMantenida;
@@ -57,11 +74,11 @@ public class Tecnico implements Cloneable {
         this.promedioTiempoOcioso = promedioTiempoOcioso;
     }
 
-    public EstadoPc getEstado() {
+    public EstadoTecnico getEstado() {
         return estado;
     }
 
-    public void setEstado(EstadoPc estado) {
+    public void setEstado(EstadoTecnico estado) {
         this.estado = estado;
     }
 
@@ -87,14 +104,6 @@ public class Tecnico implements Cloneable {
 
     public void setDuracionDescanso(Float duracionDescanso) {
         this.duracionDescanso = duracionDescanso;
-    }
-
-    public Float getTiempoRegreso() {
-        return tiempoRegreso;
-    }
-
-    public void setTiempoRegreso(Float tiempoRegreso) {
-        this.tiempoRegreso = tiempoRegreso;
     }
 
     public Float getBase() {
@@ -135,14 +144,6 @@ public class Tecnico implements Cloneable {
 
     public void setDuracionMantenimiento(Float duracionMantenimiento) {
         this.duracionMantenimiento = duracionMantenimiento;
-    }
-
-    public Float getFinMantenimiento() {
-        return finMantenimiento;
-    }
-
-    public void setFinMantenimiento(Float finMantenimiento) {
-        this.finMantenimiento = finMantenimiento;
     }
 
     public Float getMin() {

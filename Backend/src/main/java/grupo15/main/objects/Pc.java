@@ -18,19 +18,22 @@ public class Pc implements Cloneable {
     private Random randomInscripcion;
     private Float numRandomInscripcion;
     private Float duracionInscripcion;
-    private Float finInscripcion;
 
     // Parámetros para las distribuciones uniformes
     private Float min;  // a
     private Float max;  // b
 
-    public Pc(Integer id, EstadoPc estado, Float numRandomInscripcion, Float duracionInscripcion, Float finInscripcion, Float min, Float max) {
+    public void generarDuracionInscripcion(){
+        this.numRandomInscripcion = this.randomInscripcion.nextFloat();
+        this.duracionInscripcion = this.min + this.numRandomInscripcion*(this.max-this.min);
+    }
+
+    public Pc(Integer id, EstadoPc estado, Float numRandomInscripcion, Float duracionInscripcion, Float min, Float max) {
         this.id = id;
         this.estado = estado;
         this.randomInscripcion = new Random();
         this.numRandomInscripcion = numRandomInscripcion;
         this.duracionInscripcion = duracionInscripcion;
-        this.finInscripcion = finInscripcion;
         this.min = min;
         this.max = max;
     }
@@ -75,13 +78,6 @@ public class Pc implements Cloneable {
         this.duracionInscripcion = duracionInscripcion;
     }
 
-    public Float getFinInscripcion() {
-        return finInscripcion;
-    }
-
-    public void setFinInscripcion(Float finInscripcion) {
-        this.finInscripcion = finInscripcion;
-    }
 
     public Float getMin() {
         return min;
