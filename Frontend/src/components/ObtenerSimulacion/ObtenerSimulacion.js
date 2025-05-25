@@ -107,12 +107,12 @@ function ObtenerSimulacion({ setDatosGenerados }) {
     });
 
 
-    // Función para manejar la petición al backend
     const fetchDataFromBackend = async (values) => {
-
         setIsLoading(true);
-        // Aquí se hace la petición al backend        
-        const { tiempoMinimoInscripcion,
+    
+        // Extraemos los valores del formulario
+        const {
+            tiempoMinimoInscripcion,
             tiempoMaximoInscripcion,
             mediaLlegada,
             tiempoMinimoMantenimiento,
@@ -121,22 +121,26 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             minutosRangoTecnico,
             minutosSimulacion,
             minutoDesde,
-            iteraciones } = values;
-        const url = `http://localhost:8080/api/vector/${tiempoMinimoInscripcion},
-                    ${tiempoMaximoInscripcion},
-                    ${mediaLlegada},
-                    ${tiempoMinimoMantenimiento},
-                    ${tiempoMaximoMantenimiento},
-                    ${minutosBaseTecnico},
-                    ${minutosRangoTecnico},
-                    ${minutosSimulacion},
-                    ${minutoDesde},
-                    ${iteraciones}`;
+            iteraciones
+        } = values;
+    
+        // Armamos la URL con los parámetros como query params
+        const url = `http://localhost:8080/simulacion/run-parametros?` +
+            `minInscripcion=${tiempoMinimoInscripcion}&` +
+            `maxInscripcion=${tiempoMaximoInscripcion}&` +
+            `mediaLlegada=${mediaLlegada}&` +
+            `minMantenimiento=${tiempoMinimoMantenimiento}&` +
+            `maxMantenimiento=${tiempoMaximoMantenimiento}&` +
+            `baseRegresoTecnico=${minutosBaseTecnico}&` +
+            `rangoRegresoTecnico=${minutosRangoTecnico}&` +
+            `minutosSimulacion=${minutosSimulacion}&` +
+            `minutoDesde=${minutoDesde}&` +
+            `iteracionesMostrar=${iteraciones}`;
+    
         try {
             const response = await axios.get(url);
             setDatosGenerados({
-                data: response.data // Datos generados
-
+                data: response.data
             });
         } catch (error) {
             console.error('Error al obtener los datos:', error);
@@ -144,17 +148,18 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             setIsLoading(false);
         }
     };
+    
 
     return (
         <Formik
             initialValues={{
-                tiempoMinimoInscripcion: '',
-                tiempoMaximoInscripcion: '',
-                mediaLlegada: '',
-                tiempoMinimoMantenimiento: '',
-                tiempoMaximoMantenimiento: '',
-                minutosBaseTecnico: '',
-                minutosRangoTecnico: '',
+                mediaLlegada: 2,
+                tiempoMinimoInscripcion: 5,
+                tiempoMaximoInscripcion: 8,
+                tiempoMinimoMantenimiento: 3,
+                tiempoMaximoMantenimiento: 10,
+                minutosBaseTecnico: 60,
+                minutosRangoTecnico: 3,
                 minutosSimulacion: '',
                 minutoDesde: '',
                 iteraciones: ''
