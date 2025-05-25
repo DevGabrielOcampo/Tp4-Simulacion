@@ -5,10 +5,21 @@ import grupo15.main.objects.Pc;
 import grupo15.main.objects.Tecnico;
 import grupo15.main.states.EstadoPc;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class Simulacion {
+
     private VectorEstado estado;
+
+    public VectorEstado getEstado() {
+        return estado;
+    }
+
+    public void setEstado(VectorEstado estado) {
+        this.estado = estado;
+    }
 
     public Simulacion(Float minInscripcion, Float maxInscripcion, Float mediaExponencialNegativa, Float minMantenimiento, Float maxMantenimiento, Float baseRegresoTecnico, Float rangoRegresoTecnico, Float minutosSimulacion, Float minutosDesde, Float iteracionesMostrar) {
         estado = inicializarEstado(minInscripcion, maxInscripcion, mediaExponencialNegativa, minMantenimiento, maxMantenimiento, baseRegresoTecnico, rangoRegresoTecnico, minutosSimulacion, minutosDesde, iteracionesMostrar);
@@ -16,18 +27,17 @@ public class Simulacion {
 
     private VectorEstado inicializarEstado(Float minInscripcion, Float maxInscripcion, Float mediaExponencialNegativa, Float minMantenimiento, Float maxMantenimiento, Float baseRegresoTecnico, Float rangoRegresoTecnico, Float minutosSimulacion, Float minutosDesde, Float iteracionesMostrar) {
         // Crear las 5 PC iniciales
-        Pc[] pcs = new Pc[5];
+        List<Pc> pcs = new ArrayList<>(); // Inicializamos una lista vacía
         for (int i = 0; i < 5; i++) {
-            pcs[i] = new Pc(
-                    i + 1,        // ID de la PC (del 1 al 5)
+            pcs.add(new Pc(
+                    i + 1,         // ID de la PC (del 1 al 5)
                     EstadoPc.LIBRE,  // Estado inicial libre
-                    0.0f,            // Random  (Creo que esto mas que un RND deberia ser el generador para pedirle los numeros y agregar atributo para el rnd)
+                    0.0f,            // Random (Esto más que un RND debería ser el generador)
                     0.0f,            // Duración de inscripción (valor inicial, aplicar distribución luego)
-                    0.0f,           // Fin de inscripción (pendiente de ajuste según lógica)
-                    minInscripcion,               // Parámetro min (definido más arriba)
-                    maxInscripcion                // Parámetro max (definido más arriba)
-            ); // Valores inventados para probar, hay que acomodar lógica
-
+                    0.0f,            // Fin de inscripción (pendiente de ajuste según lógica)
+                    minInscripcion,  // Parámetro min (definido más arriba)
+                    maxInscripcion   // Parámetro max (definido más arriba)
+            ));
         }
 
         // Crear el técnico inicial
@@ -49,10 +59,15 @@ public class Simulacion {
                 0.0f                  // Promedio tiempo ocioso
         ); // Valores inventados para probar, hay que acomodar lógica
 
+        List<Alumno> alumnos = new ArrayList<>();
+        Alumno alumnoInicial = new Alumno(mediaExponencialNegativa);
+        alumnos.add(alumnoInicial);
+
+
 
 
         // Retornar el estado inicial
-        return new VectorEstado(0, "Inicialización", 0.0f, pcs, tecnico, 0, 0, new Alumno[0]);
+        return new VectorEstado(0, "Inicialización", 0.0f, alumnoInicial.getDuracionLlegada(), pcs, tecnico, 0, 0, alumnos);
     }
 
     public void ejecutar() {
@@ -61,15 +76,15 @@ public class Simulacion {
 
     private void mostrarEstado() {
         System.out.println("======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================");
-        System.out.printf("%-12s %-20s %-10s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s ",
-                "Iteración", "Evento", "Reloj",
-                "Rnd Alumno", "Tiempo Llegada", "Próx. Llegada",
-                "Rnd Técnico", "Tiempo Regreso", "Próx. Regreso",
-                "Abandonos", "Cola Alumnos",
-                "Estado Técnico", "Fin Mantenimiento", "ABC");
+        System.out.printf("%-12s %-20s %-10s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s",
+                "| Iteración", " | Evento", " | Reloj | ",
+                "Rnd Alumno", "Tiempo Llegada", "Próx. Llegada | ",
+                "Rnd Técnico", "Tiempo Regreso", "Próx. Regreso | ",
+                "Abandonos", " | Cola Alumnos | ",
+                "| Estado Técnico", "RND", "Tiempo Mantenimiento", "Fin Mantenimiento", "Ultima PC" ,"Acumulador Tiempo Ocioso", "Tiempo Total Presente", "Promedio Tiempo Ocioso |");
 
         for (int i = 1; i <= 5; i++) {
-            System.out.printf("%-15s %-15s %-15s ", "PC"+i, "RND", "Fin Inscripción");
+            System.out.printf("%-15s %-15s %-15s %-15s", "| PC"+i, "RND", "Tiempo Inscripcion", "Fin Inscripción |");
         }
 
         System.out.printf("%-15s %-15s %-15s ", "Alumno", "Estado", "PC Ocupada");
@@ -80,13 +95,13 @@ public class Simulacion {
         // Imprimir datos en la misma línea
         System.out.printf("%-12d %-20s %-10.2f %-15.2f %-15.2f %-15.2f %-15.2f %-15.2f %-15.2f %-15d %-15d %-15s %-15.2f ",
                 estado.getIteracion(), estado.getEvento(), estado.getReloj(),
-                estado.getReloj(), estado.getReloj(), estado.getReloj(), // Cualquier fruta para que ande
-                estado.getTecnico().getRandomRegreso(), estado.getTecnico().getDuracionDescanso(), estado.getTecnico().getTiempoRegreso(),
+                estado.getAlumnos().get(0).getRandomLlegada(), estado.getAlumnos().get(0).getDuracionLlegada(), estado.getReloj() + estado.getAlumnos().get(0).getDuracionLlegada(),
+                estado.getTecnico().getNumRandomRegreso(), estado.getTecnico().getDuracionDescanso(), estado.getTecnico().getTiempoRegreso(),
                 estado.getAcumAbandonos(), estado.getColaAlumnos(),
                 estado.getTecnico().getEstado(), estado.getTecnico().getFinMantenimiento());
 
         for (Pc pc : estado.getPcs()) {
-            System.out.printf("%-15.2f %-15.2f %-15.2f ", pc.getRandom(), pc.getDuracionInscripcion(), pc.getFinInscripcion());
+            System.out.printf("%-15.2f %-15.2f %-15.2f ", pc.getNumRandomInscripcion(), pc.getDuracionInscripcion(), pc.getFinInscripcion());
         }
 
         for (Alumno alumno : estado.getAlumnos()) {

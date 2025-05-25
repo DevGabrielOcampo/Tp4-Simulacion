@@ -4,6 +4,8 @@ import grupo15.main.states.EstadoPc;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.Random;
+
 @Data // Da los getters, setters y el toString
 @Builder // Este da el constructor
 public class Pc implements Cloneable {
@@ -13,20 +15,20 @@ public class Pc implements Cloneable {
     @Builder.Default
     private EstadoPc estado = EstadoPc.LIBRE;
 
-    private Float random;
-
+    private Random randomInscripcion;
+    private Float numRandomInscripcion;
     private Float duracionInscripcion;
-
     private Float finInscripcion;
 
     // Parámetros para las distribuciones uniformes
     private Float min;  // a
     private Float max;  // b
 
-    public Pc(Integer id, EstadoPc estado, Float random, Float duracionInscripcion, Float finInscripcion, Float min, Float max) {
+    public Pc(Integer id, EstadoPc estado, Float numRandomInscripcion, Float duracionInscripcion, Float finInscripcion, Float min, Float max) {
         this.id = id;
         this.estado = estado;
-        this.random = random;
+        this.randomInscripcion = new Random();
+        this.numRandomInscripcion = numRandomInscripcion;
         this.duracionInscripcion = duracionInscripcion;
         this.finInscripcion = finInscripcion;
         this.min = min;
@@ -49,12 +51,20 @@ public class Pc implements Cloneable {
         this.estado = estado;
     }
 
-    public Float getRandom() {
-        return random;
+    public Random getRandomInscripcion() {
+        return randomInscripcion;
     }
 
-    public void setRandom(Float random) {
-        this.random = random;
+    public void setRandomInscripcion(Random randomInscripcion) {
+        this.randomInscripcion = randomInscripcion;
+    }
+
+    public Float getNumRandomInscripcion() {
+        return numRandomInscripcion;
+    }
+
+    public void setNumRandomInscripcion(Float numRandomInscripcion) {
+        this.numRandomInscripcion = numRandomInscripcion;
     }
 
     public Float getDuracionInscripcion() {

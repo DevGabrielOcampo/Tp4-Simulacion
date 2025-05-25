@@ -8,25 +8,29 @@ import lombok.Data;
 import lombok.Getter;
 import grupo15.main.utils.Generators.*;
 
+import java.util.List;
+
 @Builder
 @Getter
 @Data
-public class VectorEstado {
+public class VectorEstado implements Cloneable{
 
     private Integer iteracion;
     @Builder.Default
     private String evento = "Inicialización";
     private Float reloj;
-    private Pc[] pcs;
+    private Float proximaLlegadaAlumno;
+    private List<Pc> pcs;
     private Tecnico tecnico;
     private Integer acumAbandonos;
     private Integer colaAlumnos;
-    private Alumno[] alumnos;
+    private List<Alumno> alumnos;
 
-    public VectorEstado(Integer iteracion, String evento, Float reloj, Pc[] pcs, Tecnico tecnico, Integer acumAbandonos, Integer colaAlumnos, Alumno[] alumnos) {
+    public VectorEstado(Integer iteracion, String evento, Float reloj, Float proximaLlegadaAlumno, List<Pc> pcs, Tecnico tecnico, Integer acumAbandonos, Integer colaAlumnos, List<Alumno> alumnos) {
         this.iteracion = iteracion;
         this.evento = evento;
         this.reloj = reloj;
+        this.proximaLlegadaAlumno = proximaLlegadaAlumno;
         this.pcs = pcs;
         this.tecnico = tecnico;
         this.acumAbandonos = acumAbandonos;
@@ -58,11 +62,19 @@ public class VectorEstado {
         this.reloj = reloj;
     }
 
-    public Pc[] getPcs() {
+    public Float getProximaLlegadaAlumno() {
+        return proximaLlegadaAlumno;
+    }
+
+    public void setProximaLlegadaAlumno(Float proximaLlegadaAlumno) {
+        this.proximaLlegadaAlumno = proximaLlegadaAlumno;
+    }
+
+    public List<Pc> getPcs() {
         return pcs;
     }
 
-    public void setPcs(Pc[] pcs) {
+    public void setPcs(List<Pc> pcs) {
         this.pcs = pcs;
     }
 
@@ -90,11 +102,22 @@ public class VectorEstado {
         this.colaAlumnos = colaAlumnos;
     }
 
-    public Alumno[] getAlumnos() {
+    public List<Alumno> getAlumnos() {
         return alumnos;
     }
 
-    public void setAlumnos(Alumno[] alumnos) {
+    public void setAlumnos(List<Alumno> alumnos) {
         this.alumnos = alumnos;
+    }
+
+    @Override
+    public VectorEstado clone() {
+        try {
+            VectorEstado clone = (VectorEstado) super.clone();
+            // TODO: copy mutable state here, so the clone can't change the internals of the original
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
     }
 }

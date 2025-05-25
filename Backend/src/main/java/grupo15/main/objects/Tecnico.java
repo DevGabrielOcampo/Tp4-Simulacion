@@ -4,6 +4,8 @@ import grupo15.main.states.EstadoPc;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.Random;
+
 @Data
 @Builder
 public class Tecnico implements Cloneable {
@@ -12,15 +14,17 @@ public class Tecnico implements Cloneable {
     private EstadoPc estado = EstadoPc.LIBRE;
 
     // Parte relacionada con la llegada del tecnico
-    private Float randomRegreso;
+    private Random randomRegreso;
+    private Float numRandomRegreso;
     private Float duracionDescanso;
     private Float tiempoRegreso;
     // Parámetros para las distribucion de regreso
     private Float base;  // 1h
     private Float rango;  // +-3min
 
-    // Parte relacionada con la llegada del tecnico
-    private Float randomMantenimiento;
+    // Parte relacionada con el tiempo de mantenimiento
+    private Random randomMantenimieto;
+    private Float numRandomMantenimiento;
     private Float duracionMantenimiento;
     private Float finMantenimiento;
     // Parámetros para las distribuciones uniformes en los mantenimientos
@@ -33,14 +37,16 @@ public class Tecnico implements Cloneable {
     private Float acumTiempoTotal;
     private Float promedioTiempoOcioso;
 
-    public Tecnico(EstadoPc estado, Float randomRegreso, Float duracionDescanso, Float tiempoRegreso, Float base, Float rango, Float randomMantenimiento, Float duracionMantenimiento, Float finMantenimiento, Float min, Float max, Pc ultimaPcMantenida, Float acumTiempoOcioso, Float acumTiempoTotal, Float promedioTiempoOcioso) {
+    public Tecnico(EstadoPc estado, Float numRandomRegreso, Float duracionDescanso, Float tiempoRegreso, Float base, Float rango, Float numRandomMantenimiento, Float duracionMantenimiento, Float finMantenimiento, Float min, Float max, Pc ultimaPcMantenida, Float acumTiempoOcioso, Float acumTiempoTotal, Float promedioTiempoOcioso) {
         this.estado = estado;
-        this.randomRegreso = randomRegreso;
+        this.randomRegreso = new Random();
+        this.numRandomRegreso = numRandomRegreso;
         this.duracionDescanso = duracionDescanso;
         this.tiempoRegreso = tiempoRegreso;
         this.base = base;
         this.rango = rango;
-        this.randomMantenimiento = randomMantenimiento;
+        this.randomMantenimieto = new Random();
+        this.numRandomMantenimiento = numRandomMantenimiento;
         this.duracionMantenimiento = duracionMantenimiento;
         this.finMantenimiento = finMantenimiento;
         this.min = min;
@@ -59,12 +65,20 @@ public class Tecnico implements Cloneable {
         this.estado = estado;
     }
 
-    public Float getRandomRegreso() {
+    public Random getRandomRegreso() {
         return randomRegreso;
     }
 
-    public void setRandomRegreso(Float randomRegreso) {
+    public void setRandomRegreso(Random randomRegreso) {
         this.randomRegreso = randomRegreso;
+    }
+
+    public Float getNumRandomRegreso() {
+        return numRandomRegreso;
+    }
+
+    public void setNumRandomRegreso(Float numRandomRegreso) {
+        this.numRandomRegreso = numRandomRegreso;
     }
 
     public Float getDuracionDescanso() {
@@ -99,12 +113,20 @@ public class Tecnico implements Cloneable {
         this.rango = rango;
     }
 
-    public Float getRandomMantenimiento() {
-        return randomMantenimiento;
+    public Random getRandomMantenimieto() {
+        return randomMantenimieto;
     }
 
-    public void setRandomMantenimiento(Float randomMantenimiento) {
-        this.randomMantenimiento = randomMantenimiento;
+    public void setRandomMantenimieto(Random randomMantenimieto) {
+        this.randomMantenimieto = randomMantenimieto;
+    }
+
+    public Float getNumRandomMantenimiento() {
+        return numRandomMantenimiento;
+    }
+
+    public void setNumRandomMantenimiento(Float numRandomMantenimiento) {
+        this.numRandomMantenimiento = numRandomMantenimiento;
     }
 
     public Float getDuracionMantenimiento() {

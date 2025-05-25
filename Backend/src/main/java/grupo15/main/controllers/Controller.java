@@ -22,7 +22,7 @@ public class Controller {
     @GetMapping("/vector/{datos}")
     // Recibe 4 floats, el primer representa la muestra, el segundo la distribucion, el tercero y cuarto los intervalos [A, B]
     // el quinto desviacion, el sexto media, el septimo lambda
-    public ResponseEntity<List<Float>> recibirParametros(@PathVariable List<Float> datos) {
+    public VectorEstado recibirParametros(@PathVariable List<Float> datos) {
         Float minInscripcion = datos.get(0); // Parametro A de la distribuicion uniforme para las inscripciones
         Float maxInscripcion = datos.get(1); // Parametro B de la distribuicion uniforme para las inscripciones
         Float mediaExponencialNegativa = datos.get(2); // Media de la exponencial negativa de las llegada de los alumnos
@@ -38,6 +38,6 @@ public class Controller {
         simulacion.ejecutar();
 
 
-        return null;
+        return simulacion.getEstado();
     }
 }
