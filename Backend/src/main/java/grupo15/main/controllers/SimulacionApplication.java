@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.io.Serializable;
+import java.util.stream.Collectors;
 
-// Main Spring Boot Application class
 @SpringBootApplication
 @RestController
 @RequestMapping("/simulacion")
@@ -18,7 +18,6 @@ public class SimulacionApplication {
         SpringApplication.run(SimulacionApplication.class, args);
     }
 
-    // Nuevo endpoint para recibir todos los parámetros
     @GetMapping("/run-parametros")
     public List<Map<String, Object>> runSimulationWithParameters(
             @RequestParam("minInscripcion") Float minInscripcion,
@@ -32,7 +31,6 @@ public class SimulacionApplication {
             @RequestParam("minutoDesde") Float minutoDesde,
             @RequestParam("iteracionesMostrar") Float iteracionesMostrar) {
 
-        // Validaciones básicas antes de iniciar la simulación
         if (minutosSimulacion <= 0) {
             throw new IllegalArgumentException("Los minutos de simulación deben ser mayores a 0.");
         }
@@ -51,8 +49,8 @@ public class SimulacionApplication {
         if (minMantenimiento > maxMantenimiento) {
             throw new IllegalArgumentException("El tiempo mínimo de mantenimiento no puede ser mayor que el máximo.");
         }
-        if (baseRegresoTecnico <= 0) {
-            throw new IllegalArgumentException("El tiempo base de regreso del técnico debe ser positivo.");
+        if (baseRegresoTecnico < 0) {
+            throw new IllegalArgumentException("El tiempo base de regreso del técnico no puede ser negativo.");
         }
         if (rangoRegresoTecnico < 0) {
             throw new IllegalArgumentException("El rango de regreso del técnico no puede ser negativo.");
@@ -61,9 +59,8 @@ public class SimulacionApplication {
             throw new IllegalArgumentException("La media de llegada de alumnos debe ser positiva.");
         }
 
-
         Simulacion simulacion = new Simulacion(
-                6, // Número fijo de equipos
+                6, // Fixed number of machines
                 minInscripcion,
                 maxInscripcion,
                 mediaLlegada,
@@ -75,7 +72,6 @@ public class SimulacionApplication {
 
         List<Map<String, Object>> resultadosCompletos = simulacion.simular(minutosSimulacion.doubleValue());
 
-        // Filtrar los resultados según los parámetros minutosDesde e iteracionesMostrar
         List<Map<String, Object>> resultadosFiltrados = new ArrayList<>();
         int count = 0;
         for (Map<String, Object> fila : resultadosCompletos) {
@@ -84,7 +80,7 @@ public class SimulacionApplication {
                 resultadosFiltrados.add(fila);
                 count++;
                 if (count >= iteracionesMostrar) {
-                    break; // Detener si ya se mostraron las iteraciones deseadas
+                    break;
                 }
             }
         }
@@ -93,7 +89,6 @@ public class SimulacionApplication {
     }
 }
 
-// Enum for Equipo State
 enum EstadoEquipo implements Serializable {
     LIBRE("Libre"),
     OCUPADO("Ocupado"),
@@ -110,7 +105,6 @@ enum EstadoEquipo implements Serializable {
     }
 }
 
-// Enum for Alumno State
 enum EstadoAlumno implements Serializable {
     SIENDO_ATENDIDO("SA"),
     EN_COLA("EC"),
@@ -127,39 +121,32 @@ enum EstadoAlumno implements Serializable {
     }
 }
 
-// Simulacion Class - Core logic
 class Simulacion implements Serializable {
     private List<Map<String, Object>> equipos;
-    private float infInscripcion; // Usar float para consistencia
-    private float supInscripcion; // Usar float para consistencia
+    private float infInscripcion;
+    private float supInscripcion;
     private double mediaLlegada;
-    private float minMantenimiento; // Nuevo parámetro
-    private float maxMantenimiento; // Nuevo parámetro
-    private float baseRegresoTecnico; // Nuevo parámetro
-    private float rangoRegresoTecnico; // Nuevo parámetro
+    private float minMantenimiento;
+    private float maxMantenimiento;
+    private float baseRegresoTecnico;
+    private float rangoRegresoTecnico;
 
     private int cola;
     private double tiempoActual;
     private List<Map<String, Object>> resultados;
     private int contadorAlumnos;
     private Map<String, EstadoAlumno> estadoAlumnos;
-    private Map<String, Double> tiempoLlegadaAlumnos;
-    private Map<String, Double> tiempoInicioAtencion;
-    private Map<String, Double> tiemposEspera;
     private List<String> alumnosEnCola;
-    private double tiempoEsperaTotal;
-    private int alumnosConEspera;
-    private Double proximoMantenimiento;
-    private boolean mantenimientoEnEsperas;
+    private Double proximoRegresoTecnico;
     private int proximaComputadoraMantenimiento;
     private double proximaLlegada;
 
-    // Constructor antiguo (mantener por si se usa en otro lugar)
-    public Simulacion() {
-        this(6, 5f, 8f, 2.0f, 3f, 10f, 57f, 3f); // Valores por defecto para el constructor sin parámetros
-    }
+    // Estadísticas del técnico
+    private double tiempoOciosoTecnicoAcumulado;
+    private double tiempoTrabajadoTecnicoAcumulado; // Nuevo: Tiempo que el técnico está manteniendo una PC
+    private int cantidadMantenimientosCompletados;
 
-    // Nuevo constructor para la simulación con parámetros
+
     public Simulacion(int equiposCount, Float infInscripcion, Float supInscripcion,
                       Float mediaLlegada, Float minMantenimiento, Float maxMantenimiento,
                       Float baseRegresoTecnico, Float rangoRegresoTecnico) {
@@ -186,15 +173,14 @@ class Simulacion implements Serializable {
         this.resultados = new ArrayList<>();
         this.contadorAlumnos = 0;
         this.estadoAlumnos = new HashMap<>();
-        this.tiempoLlegadaAlumnos = new HashMap<>();
-        this.tiempoInicioAtencion = new HashMap<>();
-        this.tiemposEspera = new HashMap<>();
         this.alumnosEnCola = new ArrayList<>();
-        this.tiempoEsperaTotal = 0;
-        this.alumnosConEspera = 0;
-        this.proximoMantenimiento = null;
-        this.mantenimientoEnEsperas = false;
+        this.proximoRegresoTecnico = null;
         this.proximaComputadoraMantenimiento = 0;
+        this.proximaLlegada = 0;
+
+        this.tiempoOciosoTecnicoAcumulado = 0.0;
+        this.tiempoTrabajadoTecnicoAcumulado = 0.0; // Inicializado
+        this.cantidadMantenimientosCompletados = 0;
     }
 
     private double[] generarTiempoLlegada() {
@@ -218,7 +204,6 @@ class Simulacion implements Serializable {
     private double[] generarTiempoRegreso() {
         double rnd = ThreadLocalRandom.current().nextDouble();
         double tiempoRegreso = baseRegresoTecnico - rangoRegresoTecnico + (2 * rangoRegresoTecnico) * rnd;
-        // Asegurarse de que el tiempo de regreso no sea negativo
         if (tiempoRegreso < 0) {
             tiempoRegreso = 0;
         }
@@ -227,96 +212,70 @@ class Simulacion implements Serializable {
 
     private Map<String, Object> obtenerEquipoLibre() {
         for (Map<String, Object> equipo : equipos) {
-            if (equipo.get("estado") == EstadoEquipo.LIBRE) {
+            if (equipo.get("estado") == EstadoEquipo.LIBRE && equipo.get("fin_mantenimiento") == null) {
                 return equipo;
             }
         }
         return null;
     }
 
-    private void actualizarEstadoAlumno(String idAlumno, EstadoAlumno estado, double tiempoActual) {
-        if (!estadoAlumnos.containsKey(idAlumno)) {
+    // Método para verificar si el técnico está ocupado (realizando mantenimiento)
+    private boolean isTechnicianBusyMaintaining() {
+        for (Map<String, Object> equipo : equipos) {
+            if (equipo.get("estado") == EstadoEquipo.MANTENIMIENTO) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private void actualizarEstadoAlumno(String idAlumno, EstadoAlumno estado) {
+        if (!estadoAlumnos.containsKey(idAlumno) || !estadoAlumnos.get(idAlumno).equals(estado)) {
             estadoAlumnos.put(idAlumno, estado);
-            tiempoLlegadaAlumnos.put(idAlumno, tiempoActual);
+
             if (estado == EstadoAlumno.EN_COLA) {
                 alumnosEnCola.add(idAlumno);
-                tiemposEspera.put(idAlumno, 0.0);
-                alumnosConEspera++;
-            }
-        } else {
-            EstadoAlumno anteriorEstado = estadoAlumnos.get(idAlumno);
-            estadoAlumnos.put(idAlumno, estado);
-
-            if (estado == EstadoAlumno.SIENDO_ATENDIDO && anteriorEstado == EstadoAlumno.EN_COLA) {
+            } else if (estado == EstadoAlumno.SIENDO_ATENDIDO) {
                 alumnosEnCola.remove(idAlumno);
-                double tiempoEspera = tiempoActual - tiempoLlegadaAlumnos.get(idAlumno);
-                tiemposEspera.put(idAlumno, tiempoEspera);
-                if (tiempoEspera > 0) {
-                    tiempoEsperaTotal += tiempoEspera;
-                }
             }
+            // Para ATENCION_FINALIZADA, simplemente se actualiza el estado, no hay cola de por medio
         }
-    }
-
-    private double calcularTiempoEspera(String idAlumno) {
-        if (estadoAlumnos.containsKey(idAlumno)) {
-            if (estadoAlumnos.get(idAlumno) == EstadoAlumno.EN_COLA) {
-                double tiempoEspera = tiempoActual - tiempoLlegadaAlumnos.get(idAlumno);
-                return Math.round(tiempoEspera * 100.0) / 100.0;
-            }
-            return Math.round(tiemposEspera.getOrDefault(idAlumno, 0.0) * 100.0) / 100.0;
-        }
-        return 0.0;
-    }
-
-    private double[] calcularEstadisticasEspera() {
-        if (alumnosConEspera > 0) {
-            double acumulado = Math.round(tiempoEsperaTotal * 100.0) / 100.0;
-            double promedio = Math.round((acumulado / alumnosConEspera) * 100.0) / 100.0;
-            return new double[]{acumulado, promedio};
-        }
-        return new double[]{0.0, 0.0};
     }
 
     private void agregarEstadosAlumnos(Map<String, Object> estadoActual) {
+        estadoActual.put("Cola", cola);
+
+        int currentMaxAlumnos = 0;
         for (int i = 1; i <= contadorAlumnos; i++) {
             String alumnoId = "A" + i;
             if (estadoAlumnos.containsKey(alumnoId)) {
                 estadoActual.put("Estado " + alumnoId, estadoAlumnos.get(alumnoId).getValue());
-                estadoActual.put("Tiempo Espera " + alumnoId, calcularTiempoEspera(alumnoId));
+                currentMaxAlumnos = i;
             } else {
-                // Asegurarse de que todos los alumnos aparezcan, incluso si no han llegado
-                estadoActual.put("Estado " + alumnoId, "N/A");
-                estadoActual.put("Tiempo Espera " + alumnoId, "N/A");
+                estadoActual.put("Estado " + alumnoId, null);
             }
         }
-
-        double[] estadisticas = calcularEstadisticasEspera();
-        estadoActual.put("Tiempo Espera Acumulado", estadisticas[0]);
-        estadoActual.put("Tiempo Espera Promedio", estadisticas[1]);
+        estadoActual.put("max_alumnos", currentMaxAlumnos);
     }
 
     private Object[] obtenerProximoEvento() {
         List<Object[]> eventos = new ArrayList<>();
         eventos.add(new Object[]{"llegada", proximaLlegada});
 
-        // Asegurarse de que proximoMantenimiento no sea null antes de agregarlo
-        if (proximoMantenimiento != null) {
-            eventos.add(new Object[]{"inicio_mantenimiento", proximoMantenimiento});
+        if (proximoRegresoTecnico != null) {
+            eventos.add(new Object[]{"regreso_tecnico", proximoRegresoTecnico});
         }
 
         for (Map<String, Object> equipo : equipos) {
-            // Asegurarse de que fin_mantenimiento no sea null antes de agregarlo
-            if (equipo.get("fin_mantenimiento") != null) {
+            if (equipo.get("fin_mantenimiento") instanceof Double) {
                 eventos.add(new Object[]{"fin_mantenimiento", (Double) equipo.get("fin_mantenimiento"), equipo});
             }
-            // Asegurarse de que fin_inscripcion no sea null antes de agregarlo
-            if (equipo.get("fin_inscripcion") != null) {
+            if (equipo.get("fin_inscripcion") instanceof Double) {
                 eventos.add(new Object[]{"fin_inscripcion", (Double) equipo.get("fin_inscripcion"), equipo});
             }
         }
 
-        // Si no hay eventos futuros definidos (esto no debería pasar si la simulación es correcta)
         if (eventos.isEmpty()) {
             throw new RuntimeException("No hay eventos futuros definidos, la simulación no puede continuar.");
         }
@@ -331,124 +290,194 @@ class Simulacion implements Serializable {
         double tiempoLlegada = llegadaResult[1];
 
         tiempoActual = 0;
-        proximaLlegada = tiempoLlegada; // La primera llegada se genera inmediatamente
-        contadorAlumnos = 0; // Se inicializa en 0, se incrementa al llegar el primer alumno
+        proximaLlegada = tiempoLlegada;
+        contadorAlumnos = 0;
 
-        // Inicializar el primer mantenimiento (si no hay equipos libres, se pospondrá)
+        tiempoOciosoTecnicoAcumulado = 0.0;
+        tiempoTrabajadoTecnicoAcumulado = 0.0;
+        cantidadMantenimientosCompletados = 0;
+
+        // --- Inicialización del primer mantenimiento ---
+        Map<String, Object> primerEquipoMantenimiento = equipos.get(0);
         double[] mantResult = generarTiempoMantenimiento();
-        double rndMant = mantResult[0];
-        double tiempoMant = mantResult[1];
-        proximoMantenimiento = tiempoMant; // La primera máquina entra en mantenimiento después de este tiempo
+        double rndMantInicial = mantResult[0];
+        double tiempoMantInicial = mantResult[1];
 
-        // Si el primer equipo está libre, lo ponemos en mantenimiento
-        Map<String, Object> primerEquipo = equipos.get(0);
-        if (primerEquipo.get("estado") == EstadoEquipo.LIBRE) {
-            primerEquipo.put("estado", EstadoEquipo.MANTENIMIENTO);
-            primerEquipo.put("fin_mantenimiento", tiempoActual + tiempoMant); // Se marca el fin de mantenimiento
-            proximaComputadoraMantenimiento = 1; // La siguiente máquina a mantener sería la 2
-        } else {
-            // Si el primer equipo no está libre (lo cual no debería pasar en la inicialización),
-            // el mantenimiento se programará pero no se iniciará
-            proximaComputadoraMantenimiento = 0; // Todavía no hemos mantenido ninguna máquina
-            // proximoMantenimiento ya está establecido al primer tiempo de mantenimiento
-        }
-
+        primerEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
+        primerEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMantInicial);
+        primerEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMantInicial);
+        proximaComputadoraMantenimiento = 1; // La siguiente máquina a revisar será la 2
+        proximoRegresoTecnico = null; // Técnico no está en descanso al inicio
 
         Map<String, Object> estadoInicial = new LinkedHashMap<>();
         estadoInicial.put("Evento", "Inicializacion");
         estadoInicial.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
+
         estadoInicial.put("RND Llegada", Math.round(rndLlegada * 100.0) / 100.0);
         estadoInicial.put("Tiempo Llegada", Math.round(tiempoLlegada * 100.0) / 100.0);
-        estadoInicial.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0); // Próxima llegada absoluta
-        estadoInicial.put("Máquina", "N/A");
-        estadoInicial.put("RND Inscripción", "N/A");
-        estadoInicial.put("Tiempo Inscripción", "N/A");
-        estadoInicial.put("Fin Inscripción", "N/A");
-        estadoInicial.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0); // RND del primer mantenimiento
-        estadoInicial.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0); // Tiempo del primer mantenimiento
-        estadoInicial.put("Fin Mantenimiento", Math.round((Double) primerEquipo.getOrDefault("fin_mantenimiento", "N/A") * 100.0) / 100.0); // Fin del primer mantenimiento si inició
-        estadoInicial.put("Próximo Inicio Mantenimiento", proximoMantenimiento != null ? Math.round(proximoMantenimiento * 100.0) / 100.0 : "N/A"); // Cuando ocurrirá el próximo evento de mantenimiento
-        estadoInicial.put("RND Tiempo Vuelta", "N/A");
-        estadoInicial.put("Tiempo Vuelta", "N/A");
+        estadoInicial.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
+
+        estadoInicial.put("Máquina", null); // Máquina relacionada con el evento actual (inscripción)
+        estadoInicial.put("RND Inscripción", null);
+        estadoInicial.put("Tiempo Inscripción", null);
+        estadoInicial.put("Fin Inscripción", null);
+
+        estadoInicial.put("Máquina Mant.", primerEquipoMantenimiento.get("id")); // Máquina a la que se le está haciendo mantenimiento
+        estadoInicial.put("RND Mantenimiento", Math.round(rndMantInicial * 100.0) / 100.0);
+        estadoInicial.put("Tiempo Mantenimiento", Math.round(tiempoMantInicial * 100.0) / 100.0);
+        estadoInicial.put("Fin Mantenimiento", Math.round((Double) primerEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
+        estadoInicial.put("RND Tiempo Vuelta", null);
+        estadoInicial.put("Tiempo Vuelta", null);
+        estadoInicial.put("Próximo Inicio Mantenimiento", null); // No hay próximo regreso aún
+
+        // Estadísticas del técnico en el inicio (se mostrarán como 0)
+        estadoInicial.put("Acum. Tiempo Trabajado Tec.", 0.0);
+        estadoInicial.put("Promedio Tiempo Trabajado Tec.", 0.0);
+        estadoInicial.put("Tiempo Ocioso Tec.", 0.0);
+        estadoInicial.put("Promedio Tiempo Ocioso Tec.", 0.0);
 
         for (int i = 0; i < equipos.size(); i++) {
-            estadoInicial.put("Máquina " + (i + 1), ((EstadoEquipo) equipos.get(i).get("estado")).getValue());
+            Map<String, Object> equipo = equipos.get(i);
+            estadoInicial.put("Máquina " + (i + 1), ((EstadoEquipo) equipo.get("estado")).getValue());
+            estadoInicial.put("Fin Inscripción M" + (i + 1), null); // Se actualiza solo si es relevante en la fila actual
+            estadoInicial.put("Fin Mantenimiento M" + (i + 1), equipo.get("fin_mantenimiento") != null ? Math.round((Double) equipo.get("fin_mantenimiento") * 100.0) / 100.0 : null);
+            estadoInicial.put("Alumno M" + (i + 1), null); // Se actualiza solo si es relevante en la fila actual
         }
-        estadoInicial.put("Cola", cola);
-        estadoInicial.put("max_alumnos", contadorAlumnos); // Se inicializa aquí para que React sepa el número de alumnos
+
         agregarEstadosAlumnos(estadoInicial);
         resultados.add(estadoInicial);
 
-
         while (tiempoActual < tiempoTotal) {
+            Map<String, Object> estadoAnterior = resultados.get(resultados.size() - 1);
+
             Object[] evento = obtenerProximoEvento();
-            tiempoActual = (double) evento[1]; // Actualiza el reloj al tiempo del próximo evento
+            double proximoTiempoEvento = (double) evento[1];
+
+            if (proximoTiempoEvento > tiempoTotal) {
+                break;
+            }
+
+            // --- CÁLCULO DE TIEMPO OCIOSO ANTES DE AVANZAR EL RELOJ ---
+            // Este cálculo debe basarse en el estado del técnico DURANTE el intervalo
+            // desde el tiempoActual anterior hasta el proximoTiempoEvento.
+            double duracionIntervalo = proximoTiempoEvento - tiempoActual;
+
+            if (duracionIntervalo > 0) {
+                // Si el técnico NO está realizando mantenimiento en ninguna máquina
+                if (!isTechnicianBusyMaintaining()) {
+                    // Y no está en su tiempo de "regreso" (descanso)
+                    if (proximoRegresoTecnico == null || proximoRegresoTecnico <= tiempoActual) { // <= tiempoActual significa que ya regresó o no está ausente
+                        tiempoOciosoTecnicoAcumulado += duracionIntervalo;
+                    }
+                    // Si proximoRegresoTecnico es > tiempoActual, significa que está en "descanso" y no acumula ocioso
+                    // (el ocioso que se acumula es el tiempo de espera *antes* de irse de descanso,
+                    // y el ocioso *después* de regresar y antes de empezar un mantenimiento).
+                    // El tiempo de descanso NO es tiempo ocioso, es tiempo "ausente".
+                }
+            }
+            tiempoOciosoTecnicoAcumulado = Math.max(0, tiempoOciosoTecnicoAcumulado); // Asegurarse de no tener negativos
+
+            tiempoActual = proximoTiempoEvento;
             String tipoEvento = (String) evento[0];
 
-            Map<String, Object> estado = null;
+            Map<String, Object> estado = new LinkedHashMap<>();
+            estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
 
-            if (tipoEvento.equals("llegada")) {
-                double[] newLlegadaResult = generarTiempoLlegada();
-                rndLlegada = newLlegadaResult[0];
-                tiempoLlegada = newLlegadaResult[1];
-                proximaLlegada = tiempoActual + tiempoLlegada; // Programa la próxima llegada
-                contadorAlumnos++;
-                String idActual = "A" + contadorAlumnos;
-                estado = procesarLlegada(idActual, rndLlegada, tiempoLlegada);
-            } else if (tipoEvento.equals("inicio_mantenimiento")) {
-                estado = procesarInicioMantenimiento();
-                if (estado == null) {
-                    continue; // No se pudo iniciar el mantenimiento, pasar al siguiente evento
+            // Copiar los estados de las máquinas y alumnos de la fila anterior para mantener la propagación
+            for (Map.Entry<String, Object> entry : estadoAnterior.entrySet()) {
+                if (!entry.getKey().equals("Evento") && !entry.getKey().equals("Reloj")
+                        // No copiar RNDs/Tiempos específicos de eventos, se recalcularán o resetearán
+                        && !entry.getKey().equals("RND Llegada")
+                        && !entry.getKey().equals("Tiempo Llegada")
+                        && !entry.getKey().equals("RND Inscripción")
+                        && !entry.getKey().equals("Tiempo Inscripción")
+                        && !entry.getKey().equals("Máquina")
+                        && !entry.getKey().equals("RND Mantenimiento")
+                        && !entry.getKey().equals("Tiempo Mantenimiento")
+                        && !entry.getKey().equals("Fin Mantenimiento") // No copiar el global, se recalcula si aplica
+                        && !entry.getKey().equals("Máquina Mant.")
+                        && !entry.getKey().equals("RND Tiempo Vuelta")
+                        && !entry.getKey().equals("Tiempo Vuelta")
+                        // NO resetear las estadísticas acumuladas, se actualizan incrementalmente
+                        && !entry.getKey().equals("Acum. Tiempo Trabajado Tec.")
+                        && !entry.getKey().equals("Promedio Tiempo Trabajado Tec.")
+                        && !entry.getKey().equals("Tiempo Ocioso Tec.")
+                        && !entry.getKey().equals("Promedio Tiempo Ocioso Tec.")
+                ) {
+                    estado.put(entry.getKey(), entry.getValue());
                 }
-            } else if (tipoEvento.equals("fin_mantenimiento")) {
-                Map<String, Object> equipo = (Map<String, Object>) evento[2];
-                estado = procesarFinMantenimiento(equipo);
-            } else if (tipoEvento.equals("fin_inscripcion")) {
-                Map<String, Object> equipo = (Map<String, Object>) evento[2];
-                estado = procesarFinInscripcion(equipo);
             }
 
-            if (estado != null) {
-                // Es importante copiar los estados de los alumnos *antes* de que se modifiquen
-                // por los eventos subsiguientes del mismo reloj si los hubiera.
-                // Sin embargo, para esta simulación discreta, cada evento ocurre en un tiempo.
-                // Si el mismo tiempo se procesa varias veces, solo la última copia será la final.
-                // El contadorAlumnos se actualiza para cada fila que se añade.
-                estado.put("max_alumnos", contadorAlumnos);
-                resultados.add(estado);
+
+            // Resetear campos específicos del evento para la fila actual
+            estado.put("Máquina", null);
+            estado.put("RND Inscripción", null);
+            estado.put("Tiempo Inscripción", null);
+            estado.put("Fin Inscripción", null); // Se actualiza si hay un fin de inscripción en esta fila
+            estado.put("Máquina Mant.", null);
+            estado.put("RND Mantenimiento", null);
+            estado.put("Tiempo Mantenimiento", null);
+            estado.put("Fin Mantenimiento", null); // Se actualiza si hay un fin de mantenimiento en esta fila
+            estado.put("RND Tiempo Vuelta", null);
+            estado.put("Tiempo Vuelta", null);
+            estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
+
+
+            switch (tipoEvento) {
+                case "llegada":
+                    double[] newLlegadaResult = generarTiempoLlegada();
+                    rndLlegada = newLlegadaResult[0];
+                    tiempoLlegada = newLlegadaResult[1];
+                    proximaLlegada = tiempoActual + tiempoLlegada;
+                    contadorAlumnos++;
+                    String idActualAlumno = "A" + contadorAlumnos;
+                    procesarLlegada(idActualAlumno, rndLlegada, tiempoLlegada, estado);
+                    break;
+                case "fin_mantenimiento":
+                    Map<String, Object> equipoFinMant = (Map<String, Object>) evento[2];
+                    procesarFinMantenimiento(equipoFinMant, estado);
+                    break;
+                case "fin_inscripcion":
+                    Map<String, Object> equipoFinInsc = (Map<String, Object>) evento[2];
+                    procesarFinInscripcion(equipoFinInsc, estado);
+                    break;
+                case "regreso_tecnico":
+                    procesarRegresoTecnico(estado);
+                    break;
             }
+
+            // Actualizar estados de máquinas y alumnos después de procesar el evento
+            for (int i = 0; i < equipos.size(); i++) {
+                Map<String, Object> currentEquipo = equipos.get(i);
+                estado.put("Máquina " + (i + 1), ((EstadoEquipo) currentEquipo.get("estado")).getValue());
+                Double finInsc = (Double) currentEquipo.get("fin_inscripcion");
+                estado.put("Fin Inscripción M" + (i + 1), finInsc != null ? Math.round(finInsc * 100.0) / 100.0 : null);
+                Double finMant = (Double) currentEquipo.get("fin_mantenimiento");
+                estado.put("Fin Mantenimiento M" + (i + 1), finMant != null ? Math.round(finMant * 100.0) / 100.0 : null);
+                estado.put("Alumno M" + (i + 1), currentEquipo.get("alumno_actual"));
+            }
+
+            estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
+            estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
+
+            // Actualizar estadísticas del técnico para la fila actual
+            estado.put("Tiempo Ocioso Tec.", Math.round(tiempoOciosoTecnicoAcumulado * 100.0) / 100.0);
+            estado.put("Promedio Tiempo Ocioso Tec.", cantidadMantenimientosCompletados > 0 ? Math.round((tiempoOciosoTecnicoAcumulado / cantidadMantenimientosCompletados) * 100.0) / 100.0 : 0.0);
+            estado.put("Acum. Tiempo Trabajado Tec.", Math.round(tiempoTrabajadoTecnicoAcumulado * 100.0) / 100.0);
+            estado.put("Promedio Tiempo Trabajado Tec.", cantidadMantenimientosCompletados > 0 ? Math.round((tiempoTrabajadoTecnicoAcumulado / cantidadMantenimientosCompletados) * 100.0) / 100.0 : 0.0);
+
+            agregarEstadosAlumnos(estado);
+            resultados.add(estado);
         }
 
-        // Ajustar el contadorAlumnos final si es necesario (ej. para el rendering de la tabla)
-        // Ya se está actualizando en cada fila, así que esto es un poco redundante aquí.
-        // Lo importante es que cada fila tenga el 'max_alumnos' correcto para su momento.
-        // No es necesario iterar de nuevo sobre `resultados` para añadir `max_alumnos`.
-        // Este valor se establece en cada fila al momento de su creación.
-
-        // Sort by 'Reloj' (redundante si ya se obtiene el evento más cercano en cada paso,
-        // pero asegura el orden final)
         resultados.sort(Comparator.comparingDouble(o -> (double) o.get("Reloj")));
         return resultados;
     }
 
-    private Map<String, Object> procesarLlegada(String idAlumno, double rndLlegada, double tiempoLlegada) {
-        Map<String, Object> estado = new LinkedHashMap<>();
+    private void procesarLlegada(String idAlumno, double rndLlegada, double tiempoLlegada, Map<String, Object> estado) {
         estado.put("Evento", "Llegada Alumno " + idAlumno);
-        estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
         estado.put("RND Llegada", Math.round(rndLlegada * 100.0) / 100.0);
         estado.put("Tiempo Llegada", Math.round(tiempoLlegada * 100.0) / 100.0);
-        estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
-        estado.put("Máquina", "N/A"); // Se actualizará si se asigna una máquina
-        estado.put("RND Inscripción", "N/A");
-        estado.put("Tiempo Inscripción", "N/A");
-        estado.put("Fin Inscripción", "N/A");
-        estado.put("RND Mantenimiento", "N/A"); // N/A para este tipo de evento
-        estado.put("Tiempo Mantenimiento", "N/A"); // N/A para este tipo de evento
-        estado.put("Fin Mantenimiento", "N/A"); // N/A para este tipo de evento
-        estado.put("Próximo Inicio Mantenimiento", proximoMantenimiento != null ? Math.round(proximoMantenimiento * 100.0) / 100.0 : "N/A");
-        estado.put("RND Tiempo Vuelta", "N/A");
-        estado.put("Tiempo Vuelta", "N/A");
-
 
         Map<String, Object> equipoLibre = obtenerEquipoLibre();
         if (equipoLibre != null) {
@@ -458,204 +487,192 @@ class Simulacion implements Serializable {
             double tiempoIns = insResult[1];
             equipoLibre.put("fin_inscripcion", tiempoActual + tiempoIns);
             equipoLibre.put("alumno_actual", idAlumno);
+
             estado.put("Máquina", equipoLibre.get("id"));
             estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
             estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
             estado.put("Fin Inscripción", Math.round((Double) equipoLibre.get("fin_inscripcion") * 100.0) / 100.0);
-            actualizarEstadoAlumno(idAlumno, EstadoAlumno.SIENDO_ATENDIDO, tiempoActual);
+            // Estos se actualizan en el bucle principal for (int i = 0; i < equipos.size(); i++)
+            // estado.put("Fin Inscripción M" + equipoLibre.get("id"), Math.round((Double) equipoLibre.get("fin_inscripcion") * 100.0) / 100.0);
+            // estado.put("Alumno M" + equipoLibre.get("id"), idAlumno);
+
+            actualizarEstadoAlumno(idAlumno, EstadoAlumno.SIENDO_ATENDIDO);
         } else {
             cola++;
-            actualizarEstadoAlumno(idAlumno, EstadoAlumno.EN_COLA, tiempoActual);
+            actualizarEstadoAlumno(idAlumno, EstadoAlumno.EN_COLA);
         }
-
-        for (int i = 0; i < equipos.size(); i++) {
-            estado.put("Máquina " + (i + 1), ((EstadoEquipo) equipos.get(i).get("estado")).getValue());
-        }
-        estado.put("Cola", cola);
-        agregarEstadosAlumnos(estado);
-        return estado;
     }
 
-    private Map<String, Object> procesarInicioMantenimiento() {
-        // En este punto, 'proximoMantenimiento' ya es el tiempo actual
-        // Si no hay equipos libres o ya hay un mantenimiento en espera para un equipo libre, no hacemos nada
-        Map<String, Object> equipoLibre = obtenerEquipoLibre();
-        if (equipoLibre == null) {
-            // No hay equipos libres para iniciar el mantenimiento ahora, se pospone implícitamente
-            // al siguiente evento que libere una máquina. El 'proximoMantenimiento' se actualizará
-            // cuando una máquina se libere o se complete un ciclo de mantenimiento.
-            // Es crucial que el 'obtenerProximoEvento' tenga una forma de reevaluar esto.
-            // Para simplificar, si no hay equipos libres, no se genera una fila para este evento,
-            // y se espera a que se libere una máquina.
-            return null; // No se puede iniciar mantenimiento ahora, no se genera una fila
+    private void procesarFinMantenimiento(Map<String, Object> equipo, Map<String, Object> estado) {
+        estado.put("Evento", "Fin Mantenimiento M" + equipo.get("id"));
+
+        double prevMantDuration = (double) equipo.getOrDefault("duracion_mantenimiento_actual", 0.0);
+        if (prevMantDuration > 0) {
+            tiempoTrabajadoTecnicoAcumulado += prevMantDuration; // Acumular tiempo trabajado
+            cantidadMantenimientosCompletados++;
         }
 
-        double[] mantResult = generarTiempoMantenimiento();
-        double rndMant = mantResult[0];
-        double tiempoMant = mantResult[1];
-
-        equipoLibre.put("estado", EstadoEquipo.MANTENIMIENTO);
-        equipoLibre.put("fin_mantenimiento", tiempoActual + tiempoMant);
-        // ProximoMantenimiento ya no se necesita aquí, ya que el evento de inicio ya ocurrió
-        proximoMantenimiento = null; // Se establecerá el próximo inicio de mantenimiento al finalizar este o el siguiente ciclo
-
-        Map<String, Object> estado = new LinkedHashMap<>();
-        estado.put("Evento", "Inicio Mantenimiento M" + equipoLibre.get("id"));
-        estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
-        estado.put("RND Llegada", "N/A");
-        estado.put("Tiempo Llegada", "N/A");
-        estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
-        estado.put("Máquina", equipoLibre.get("id"));
-        estado.put("RND Inscripción", "N/A");
-        estado.put("Tiempo Inscripción", "N/A");
-        estado.put("Fin Inscripción", "N/A");
-        estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
-        estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
-        estado.put("Fin Mantenimiento", Math.round((Double) equipoLibre.get("fin_mantenimiento") * 100.0) / 100.0);
-        estado.put("Próximo Inicio Mantenimiento", proximoMantenimiento != null ? Math.round(proximoMantenimiento * 100.0) / 100.0 : "N/A");
-        estado.put("RND Tiempo Vuelta", "N/A");
-        estado.put("Tiempo Vuelta", "N/A");
-        estado.put("Cola", cola);
-
-        for (int i = 0; i < equipos.size(); i++) {
-            estado.put("Máquina " + (i + 1), ((EstadoEquipo) equipos.get(i).get("estado")).getValue());
-        }
-        agregarEstadosAlumnos(estado);
-        return estado;
-    }
-
-    private Map<String, Object> procesarFinMantenimiento(Map<String, Object> equipo) {
         equipo.put("estado", EstadoEquipo.LIBRE);
         equipo.put("fin_mantenimiento", null);
-        // mantenimientoEnEsperas ya no se usa, el sistema ahora busca equipos libres
-        // para el mantenimiento basándose en proximoMantenimiento.
+        equipo.put("duracion_mantenimiento_actual", null);
 
-        Map<String, Object> estado = new LinkedHashMap<>();
-        estado.put("Evento", "Fin Mantenimiento M" + equipo.get("id"));
-        estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
-        estado.put("RND Llegada", "N/A");
-        estado.put("Tiempo Llegada", "N/A");
-        estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
-        estado.put("Máquina", equipo.get("id")); // Máquina que finalizó mantenimiento
-        estado.put("RND Inscripción", "N/A");
-        estado.put("Tiempo Inscripción", "N/A");
-        estado.put("Fin Inscripción", "N/A");
-        estado.put("RND Mantenimiento", "N/A"); // Se usará si se programa el siguiente
-        estado.put("Tiempo Mantenimiento", "N/A"); // Se usará si se programa el siguiente
-        estado.put("Fin Mantenimiento", "N/A"); // N/A para este evento, se libera la máquina
-        estado.put("Cola", cola);
+        // Los campos de mantenimiento en el estado global solo se rellenan si se inicia un nuevo mantenimiento AHORA
+        estado.put("Fin Mantenimiento", null); // Resetear el global, se actualiza si se inicia uno nuevo
+        estado.put("Máquina Mant.", null); // Resetear el global, se actualiza si se inicia uno nuevo
 
-        // Se intenta atender al siguiente alumno en cola si hay
-        if (!alumnosEnCola.isEmpty()) {
+        // Lógica de transición del técnico (prioridad: siguiente mantenimiento si hay o descanso)
+        // Solo si el técnico NO está en descanso
+        boolean technicianTookMachine = false;
+        if (proximoRegresoTecnico == null) {
+            // Buscar la próxima máquina para mantenimiento según el orden
+            Map<String, Object> siguienteEquipoMantenimiento = null;
+            if (proximaComputadoraMantenimiento < equipos.size()) {
+                siguienteEquipoMantenimiento = equipos.get(proximaComputadoraMantenimiento);
+            }
+
+            // Si hay una siguiente máquina y no está ocupada por un alumno
+            if (siguienteEquipoMantenimiento != null && siguienteEquipoMantenimiento.get("estado") != EstadoEquipo.OCUPADO) {
+                double[] mantResult = generarTiempoMantenimiento();
+                double rndMant = mantResult[0];
+                double tiempoMant = mantResult[1];
+
+                siguienteEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
+                siguienteEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMant);
+                siguienteEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMant);
+                proximaComputadoraMantenimiento++;
+                technicianTookMachine = true; // El técnico tomó la máquina
+
+                estado.put("Máquina Mant.", siguienteEquipoMantenimiento.get("id"));
+                estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
+                estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
+                estado.put("Fin Mantenimiento", Math.round((Double) siguienteEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
+            }
+        }
+
+        // Si el técnico NO tomó una máquina y ya no hay más máquinas pendientes en el ciclo actual,
+        // o si está en tiempo de regreso (proximoRegresoTecnico != null y > tiempoActual), entonces irse de descanso.
+        // Si proximaComputadoraMantenimiento >= equipos.size() significa que se completó un ciclo de mantenimiento.
+        if (!technicianTookMachine && proximoRegresoTecnico == null) { // Si no inició un mantenimiento Y no está ya en regreso
+            if (proximaComputadoraMantenimiento >= equipos.size() || isTechnicianBusyMaintaining()) { // Si ya recorrió todas o si hay máquinas en mantenimiento
+                // El técnico ha terminado un ciclo de mantenimiento o no hay más máquinas libres para mantenimiento, se va de descanso
+                double[] regresoResult = generarTiempoRegreso();
+                double rndVuelta = regresoResult[0];
+                double tiempoVuelta = regresoResult[1];
+                proximoRegresoTecnico = tiempoActual + tiempoVuelta;
+                proximaComputadoraMantenimiento = 0; // Reiniciar el contador para el próximo ciclo
+
+                estado.put("RND Tiempo Vuelta", Math.round(rndVuelta * 100.0) / 100.0);
+                estado.put("Tiempo Vuelta", Math.round(tiempoVuelta * 100.0) / 100.0);
+                estado.put("Próximo Inicio Mantenimiento", Math.round(proximoRegresoTecnico * 100.0) / 100.0);
+            }
+        }
+
+
+        // Lógica de atención de alumno si la máquina se liberó y no fue tomada por el técnico
+        if (!alumnosEnCola.isEmpty() && equipo.get("estado") == EstadoEquipo.LIBRE) {
             String siguienteAlumno = alumnosEnCola.get(0);
             double[] insResult = generarTiempoInscripcion();
             double rndIns = insResult[0];
             double tiempoIns = insResult[1];
+
             equipo.put("estado", EstadoEquipo.OCUPADO);
             equipo.put("fin_inscripcion", tiempoActual + tiempoIns);
             equipo.put("alumno_actual", siguienteAlumno);
-            actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.SIENDO_ATENDIDO, tiempoActual);
+            actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.SIENDO_ATENDIDO);
             cola--;
+
+            estado.put("Máquina", equipo.get("id"));
             estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
             estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
             estado.put("Fin Inscripción", Math.round((Double) equipo.get("fin_inscripcion") * 100.0) / 100.0);
+        } else if (equipo.get("estado") == EstadoEquipo.LIBRE) {
+            estado.put("Máquina", equipo.get("id"));
         }
-
-        // Programar el próximo mantenimiento o el regreso del técnico
-        if (proximaComputadoraMantenimiento < equipos.size()) {
-            // Aún quedan máquinas por mantener en el ciclo actual
-            Map<String, Object> siguienteEquipo = equipos.get(proximaComputadoraMantenimiento);
-            proximaComputadoraMantenimiento++; // Mover al siguiente índice
-
-            // Si el siguiente equipo está libre, lo programamos para mantenimiento inmediatamente
-            if (siguienteEquipo.get("estado") == EstadoEquipo.LIBRE) {
-                double[] mantResult = generarTiempoMantenimiento();
-                double rndMant = mantResult[0];
-                double tiempoMant = mantResult[1];
-                siguienteEquipo.put("estado", EstadoEquipo.MANTENIMIENTO);
-                siguienteEquipo.put("fin_mantenimiento", tiempoActual + tiempoMant);
-
-                // Actualizar los campos de mantenimiento en el estado actual para la máquina que entra en mantenimiento
-                estado.put("Máquina", siguienteEquipo.get("id")); // La máquina que AHORA entra en mantenimiento
-                estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
-                estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
-                estado.put("Fin Mantenimiento", Math.round((Double) siguienteEquipo.get("fin_mantenimiento") * 100.0) / 100.0);
-            } else {
-                // Si el siguiente equipo no está libre, se necesita programar el próximo inicio de mantenimiento
-                // para cuando se libere un equipo o cuando el técnico esté disponible.
-                // En este modelo, el técnico va en serie, así que simplemente lo dejamos para cuando se libere.
-                // Para evitar un bucle de N/A en la tabla, simplemente no mostramos RND/Tiempo/Fin Mantenimiento aquí.
-                // El proximoMantenimiento se establecerá cuando se necesite.
-            }
-
-        } else {
-            // Todas las computadoras han sido mantenidas, programar el regreso del técnico para el próximo ciclo
-            double[] regresoResult = generarTiempoRegreso();
-            double rndVuelta = regresoResult[0];
-            double tiempoVuelta = regresoResult[1];
-            proximoMantenimiento = tiempoActual + tiempoVuelta; // Programar el inicio del próximo ciclo
-            proximaComputadoraMantenimiento = 0; // Reiniciar para el próximo ciclo
-
-            estado.put("RND Tiempo Vuelta", Math.round(rndVuelta * 100.0) / 100.0);
-            estado.put("Tiempo Vuelta", Math.round(tiempoVuelta * 100.0) / 100.0);
-            estado.put("Próximo Inicio Mantenimiento", Math.round(proximoMantenimiento * 100.0) / 100.0);
-        }
-
-        estado.put("Próximo Inicio Mantenimiento", proximoMantenimiento != null ? Math.round(proximoMantenimiento * 100.0) / 100.0 : "N/A");
-
-
-        for (int i = 0; i < equipos.size(); i++) {
-            estado.put("Máquina " + (i + 1), ((EstadoEquipo) equipos.get(i).get("estado")).getValue());
-        }
-        agregarEstadosAlumnos(estado);
-        return estado;
     }
 
-    private Map<String, Object> procesarFinInscripcion(Map<String, Object> equipo) {
+    private void procesarFinInscripcion(Map<String, Object> equipo, Map<String, Object> estado) {
         String alumnoFinalizado = (String) equipo.get("alumno_actual");
-        actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.ATENCION_FINALIZADA, tiempoActual);
+        actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.ATENCION_FINALIZADA);
+
         equipo.put("estado", EstadoEquipo.LIBRE);
         equipo.put("fin_inscripcion", null);
         equipo.put("alumno_actual", null);
 
-        Map<String, Object> estado = new LinkedHashMap<>();
         estado.put("Evento", "Fin Inscripción " + alumnoFinalizado);
-        estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
-        estado.put("RND Llegada", "N/A");
-        estado.put("Tiempo Llegada", "N/A");
-        estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
-        estado.put("Máquina", equipo.get("id"));
-        estado.put("RND Inscripción", "N/A");
-        estado.put("Tiempo Inscripción", "N/A");
-        estado.put("Fin Inscripción", "N/A");
-        estado.put("RND Mantenimiento", "N/A");
-        estado.put("Tiempo Mantenimiento", "N/A");
-        estado.put("Fin Mantenimiento", "N/A");
-        estado.put("Próximo Inicio Mantenimiento", proximoMantenimiento != null ? Math.round(proximoMantenimiento * 100.0) / 100.0 : "N/A");
-        estado.put("RND Tiempo Vuelta", "N/A");
-        estado.put("Tiempo Vuelta", "N/A");
-        estado.put("Cola", cola);
+        estado.put("Máquina", equipo.get("id")); // La máquina en la que finalizó la inscripción
+        estado.put("Fin Inscripción", null); // Se actualiza solo si una nueva inscripción inicia en esta fila
 
-        // Atender al siguiente alumno en cola si hay
-        if (!alumnosEnCola.isEmpty()) {
+        boolean technicianTookMachine = false;
+        // Si el técnico NO está en descanso
+        if (proximoRegresoTecnico == null) {
+            // Si la máquina que se liberó es la siguiente en el orden de mantenimiento
+            // Y el técnico no está ya ocupado en otra máquina de mantenimiento
+            if (proximaComputadoraMantenimiento < equipos.size() &&
+                    equipo.get("id").equals(equipos.get(proximaComputadoraMantenimiento).get("id")) &&
+                    !isTechnicianBusyMaintaining()) { // Asegurarse de que el técnico no está ocupado
+
+                double[] mantResult = generarTiempoMantenimiento();
+                double rndMant = mantResult[0];
+                double tiempoMant = mantResult[1];
+
+                equipo.put("estado", EstadoEquipo.MANTENIMIENTO);
+                equipo.put("fin_mantenimiento", tiempoActual + tiempoMant);
+                equipo.put("duracion_mantenimiento_actual", tiempoMant);
+                proximaComputadoraMantenimiento++;
+                technicianTookMachine = true;
+
+                estado.put("Máquina Mant.", equipo.get("id"));
+                estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
+                estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
+                estado.put("Fin Mantenimiento", Math.round((Double) equipo.get("fin_mantenimiento") * 100.0) / 100.0);
+            }
+        }
+
+        // Si el técnico no tomó la máquina, intentar atender un alumno en cola
+        if (!technicianTookMachine && !alumnosEnCola.isEmpty()) {
             String siguienteAlumno = alumnosEnCola.get(0);
             double[] insResult = generarTiempoInscripcion();
             double rndIns = insResult[0];
             double tiempoIns = insResult[1];
+
             equipo.put("estado", EstadoEquipo.OCUPADO);
             equipo.put("fin_inscripcion", tiempoActual + tiempoIns);
             equipo.put("alumno_actual", siguienteAlumno);
-            actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.SIENDO_ATENDIDO, tiempoActual);
+            actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.SIENDO_ATENDIDO);
             cola--;
+
+            estado.put("Máquina", equipo.get("id"));
             estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
             estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
             estado.put("Fin Inscripción", Math.round((Double) equipo.get("fin_inscripcion") * 100.0) / 100.0);
+        } else if (equipo.get("estado") == EstadoEquipo.LIBRE) { // Si la máquina se liberó y no fue tomada por nadie
+            estado.put("Máquina", equipo.get("id"));
         }
+    }
 
-        for (int i = 0; i < equipos.size(); i++) {
-            estado.put("Máquina " + (i + 1), ((EstadoEquipo) equipos.get(i).get("estado")).getValue());
+    private void procesarRegresoTecnico(Map<String, Object> estado) {
+        estado.put("Evento", "Regreso Técnico");
+        proximoRegresoTecnico = null; // El técnico ya regresó
+
+        // Si hay una máquina siguiente en el ciclo de mantenimiento y no está ocupada por un alumno
+        if (proximaComputadoraMantenimiento < equipos.size()) {
+            Map<String, Object> siguienteEquipoMantenimiento = equipos.get(proximaComputadoraMantenimiento);
+
+            if (siguienteEquipoMantenimiento.get("estado") != EstadoEquipo.OCUPADO) {
+                double[] mantResult = generarTiempoMantenimiento();
+                double rndMant = mantResult[0];
+                double tiempoMant = mantResult[1];
+
+                siguienteEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
+                siguienteEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMant);
+                siguienteEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMant);
+                proximaComputadoraMantenimiento++;
+
+                estado.put("Máquina Mant.", siguienteEquipoMantenimiento.get("id"));
+                estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
+                estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
+                estado.put("Fin Mantenimiento", Math.round((Double) siguienteEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
+            }
         }
-        agregarEstadosAlumnos(estado);
-        return estado;
     }
 }
