@@ -60,7 +60,7 @@ public class SimulacionApplication {
         }
 
         Simulacion simulacion = new Simulacion(
-                6, // Fixed number of machines
+                5, // Fixed number of machines
                 minInscripcion,
                 maxInscripcion,
                 mediaLlegada,

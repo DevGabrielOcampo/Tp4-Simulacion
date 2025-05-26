@@ -7,7 +7,7 @@ function TablaSimulacion({ data }) {
     }
 
     const primeraIteracion = data[0];
-    const numMaquinas = 6;
+    const numMaquinas = 5;
 
     // Determinar dinámicamente maxAlumnos basado en el campo 'max_alumnos' de los datos
     // Esto hace que la tabla sea adaptable si el número de alumnos cambia en el futuro
