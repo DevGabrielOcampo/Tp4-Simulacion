@@ -145,7 +145,7 @@ function TablaSimulacion({ data }) {
 
                             return (
                                 <tr key={`fila-${index}`}>
-                                    <td>{index + 1}</td>
+                                    <td>{fila.Iteracion}</td>
                                     <td>{fila.Evento}</td>
                                     <td>{renderValue(fila.Reloj)}</td>
 
@@ -183,7 +183,7 @@ function TablaSimulacion({ data }) {
                                     <td>{renderValue(getVal('Promedio Tiempo Trabajado Tec.'))}</td>
 
 
-                                    <td>{renderValue(getVal('Cola'))}</td>
+                                    <td>{parseInt(getVal('Cola'))}</td>
                                     {/* Eliminado: Tiempo Espera Acumulado y Promedio de Alumnos */}
 
                                     {[...Array(numMaquinas)].map((_, i) => (
