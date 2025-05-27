@@ -1,119 +1,164 @@
-.form{
-    display: grid;
-    place-content: center;
+/* Estilos generales del formulario */
+.form {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+.form h1 {
+    text-align: center;
+    margin: 25px 0 15px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0e0e0;
+    width: 100%;
+}
+
+/* Estilos para los subtítulos */
+.subtitulo {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 10px;
+    display: block;
+}
+
+/* Estilos para las filas del formulario */
+.row {
+    margin-bottom: 20px;
+}
+
+/* Estilos para los grupos de inputs */
+.opcionales {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+/* Estilos para las cajas de input */
+.caja-inputs {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.caja-inputs:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Estilos para los mensajes de error */
+.errores {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: #dc3545;
+}
+
+/* Estilos para los botones */
+.boton-grp {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.boton {
+    background-color: #28a745;
+    border: none;
+    padding: 10px 25px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.boton:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+}
+
+.boton:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.boton-limpiar {
+    background-color: #6c757d;
+    border: none;
+    padding: 10px 25px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.boton-limpiar:hover {
+    background-color: #5a6268;
+    transform: translateY(-2px);
+}
+
+/* Estilos para los labels */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 8px;
+}
+
+/* Estilos para las secciones */
 .cant_minutos {
+    margin-top: 15px;
+}
+
+/* Estilos para la sección de simulación */
+.seccion-simulacion {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 20px;
+    gap: 15px;
+    margin-top: 15px;
 }
 
-.opciones-grp{
-    display: flex;
-    justify-content: center;
-    gap: 100px;
-    margin-top: 20px;
+.seccion-simulacion > .col-md-4 {
+    flex: 1;
+    min-width: 0; /* Evita problemas de desbordamiento */
 }
 
-.intervalos{
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
-
-.opcionales{
-    display: flex;
-    justify-content: center;
-    gap: 30px;
-    margin-bottom: 20px;
-    margin-top: 20px;
-}
-
-.errores{
-    display:inline;
-    margin: 10px;
-    color: red;
-}
-
-.caja-inputs{
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ced4da;
-    background-color: #fff;
-}
-
-.custom-select { 
-    margin-top: 10px;
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ced4da;
-    background-color: #fff;
-}
-
-.subtitulo{
-    padding-top: 10px;
-    padding-bottom: 10px;
-    font-size: 20px;
-    font-weight:600;
-    margin: 20px 0 20px 0;
-}
-
-.boton-grp{
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.boton{
-    width: 100%;
-    height: 40px;
-    background-color: #2caffe;
-    border-radius: 10px;
-    border: none;
-}
-
-.boton:hover{
-    cursor: pointer;
-    background-color: #0159b7;
-}
-
-.boton-limpiar{
-    width: 100%;
-    height: 40px;
-    background-color: #96B583;
-    border-radius: 10px;
-    border: none;
-}
-
-.boton-limpiar:hover{
-    cursor: pointer;
-    background-color: #6a7f5d;
-}
-
-@media (max-width: 560px) {
-    .intervalos {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      justify-content: space-around;
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 768px) {
+    .seccion-simulacion {
+        flex-direction: column;
+        gap: 15px;
     }
-  
-    .opciones-grp {
-      align-items: center;
-      text-align: center;
-      flex-direction: column;
-      gap: 50px;
+    
+    .seccion-simulacion > .col-md-4 {
+        width: 100%;
     }
-  
-    .custom-select {
-      width: 100%;
+}
+
+/* Media queries para responsividad */
+@media (max-width: 768px) {
+    .form {
+        padding: 15px;
     }
-  }
+    
+    .opcionales {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .boton-grp {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .boton, .boton-limpiar {
+        width: 100%;
+    }
+}
+
+/* Estilos para inputs inválidos */
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.form-control.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
