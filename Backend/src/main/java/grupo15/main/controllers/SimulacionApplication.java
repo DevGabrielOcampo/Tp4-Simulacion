@@ -247,6 +247,7 @@ class Simulacion implements Serializable {
 
     private void agregarEstadosAlumnos(Map<String, Object> estadoActual) {
         estadoActual.put("Cola", cola);
+        estadoActual.put("acumAbandonos", acumAbandonos);
 
         int cantidadAlumnos = 0;
         for (int i = 1; i <= contadorAlumnos; i++) {
@@ -427,6 +428,7 @@ class Simulacion implements Serializable {
                     estado.put("Próxima Llegada", proximaLlegada);
 
                     contadorAlumnos++;
+                    //Creamos una identificación para el alumno: A1, A2, A3...
                     String idActualAlumno = "A" + contadorAlumnos;
                     procesarLlegada(idActualAlumno, rndLlegada, tiempoLlegada, estado);
                     break;
@@ -447,6 +449,23 @@ class Simulacion implements Serializable {
                     procesarRegresoTecnico(estado);
                     break;
             }
+
+            // Actualizar estados de máquinas y alumnos después de procesar el evento
+            for (int i = 0; i < equipos.size(); i++) {
+                Map<String, Object> currentEquipo = equipos.get(i);
+                estado.put("Máquina " + (i + 1), ((EstadoEquipo) currentEquipo.get("estado")).getValue());
+                Double finInsc = (Double) currentEquipo.get("fin_inscripcion");
+                estado.put("Fin Inscripción M" + (i + 1), finInsc != null ? Math.round(finInsc * 100.0) / 100.0 : null);
+                Double finMant = (Double) currentEquipo.get("fin_mantenimiento");
+                estado.put("Fin Mantenimiento M" + (i + 1), finMant != null ? Math.round(finMant * 100.0) / 100.0 : null);
+                estado.put("Alumno M" + (i + 1), currentEquipo.get("alumno_actual"));
+            }
+
+            estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
+            estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
+
+
+
 
             //actualizarEstadisticasTecnico(estado);
             estado.put("Evento", tipoEvento);
@@ -482,8 +501,27 @@ class Simulacion implements Serializable {
 
         //Comprueba si la cola tiene lugar
         if (cola < 5){
-            cola++;
-            actualizarEstadoAlumno(idAlumno, EstadoAlumno.ESPERANDO);
+            //Verificamos si existe algún equipo libre
+            Map<String, Object> equipoLibre = obtenerEquipoLibre();
+            if (equipoLibre != null) {
+                equipoLibre.put("estado", EstadoEquipo.OCUPADO);
+                double[] insResult = generarTiempoInscripcion();
+                double rndIns = insResult[0];
+                double tiempoIns = insResult[1];
+                equipoLibre.put("fin_inscripcion", tiempoActual + tiempoIns);
+                equipoLibre.put("alumno_actual", idAlumno);
+
+                estado.put("Máquina", equipoLibre.get("id"));
+                estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
+                estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
+                estado.put("Fin Inscripción", Math.round((Double) equipoLibre.get("fin_inscripcion") * 100.0) / 100.0);
+
+                actualizarEstadoAlumno(idAlumno, EstadoAlumno.INSCRIBIENDOSE);
+            }
+            else {
+                cola++;
+                actualizarEstadoAlumno(idAlumno, EstadoAlumno.ESPERANDO);
+            }
         }
         else {
             //Implementar logica para cuando se va el alumno
@@ -491,26 +529,6 @@ class Simulacion implements Serializable {
         }
 
 
-        //Chequear esta parte
-        Map<String, Object> equipoLibre = obtenerEquipoLibre();
-        if (equipoLibre != null) {
-            equipoLibre.put("estado", EstadoEquipo.OCUPADO);
-            double[] insResult = generarTiempoInscripcion();
-            double rndIns = insResult[0];
-            double tiempoIns = insResult[1];
-            equipoLibre.put("fin_inscripcion", tiempoActual + tiempoIns);
-            equipoLibre.put("alumno_actual", idAlumno);
-
-            estado.put("Máquina", equipoLibre.get("id"));
-            estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
-            estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
-            estado.put("Fin Inscripción", Math.round((Double) equipoLibre.get("fin_inscripcion") * 100.0) / 100.0);
-            // Estos se actualizan en el bucle principal for (int i = 0; i < equipos.size(); i++)
-            // estado.put("Fin Inscripción M" + equipoLibre.get("id"), Math.round((Double) equipoLibre.get("fin_inscripcion") * 100.0) / 100.0);
-            // estado.put("Alumno M" + equipoLibre.get("id"), idAlumno);
-
-            actualizarEstadoAlumno(idAlumno, EstadoAlumno.INSCRIBIENDOSE);
-        }
     }
 
    private void procesarFinMantenimiento(Map<String, Object> equipo, Map<String, Object> estado) {
@@ -607,7 +625,7 @@ class Simulacion implements Serializable {
     private void procesarFinInscripcion(Map<String, Object> equipo, Map<String, Object> estado) {
         String alumnoFinalizado = (String) equipo.get("alumno_actual");
         actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.FINALIZO);
-        cola--;
+
 
         equipo.put("estado", EstadoEquipo.LIBRE);
         equipo.put("fin_inscripcion", null);
@@ -654,7 +672,7 @@ class Simulacion implements Serializable {
             equipo.put("fin_inscripcion", tiempoActual + tiempoIns);
             equipo.put("alumno_actual", siguienteAlumno);
             actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.INSCRIBIENDOSE);
-
+            cola--;
 
             estado.put("Máquina", equipo.get("id"));
             estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);

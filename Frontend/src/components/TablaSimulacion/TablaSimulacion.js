@@ -49,7 +49,7 @@ function TablaSimulacion({ data }) {
                             <th colSpan="3">REGRESO TÉCNICO</th>
                             <th colSpan="4">DETALLE MANTENIMIENTO</th> {/* Colspan ajustado para solo mostrar datos relevantes del evento actual */}
                             <th colSpan="4">ESTADÍSTICAS TÉCNICO</th> {/* NUEVO: Encabezado para estadísticas del técnico */}
-
+                            <th rowSpan="2">ACUM. ABANDONOS</th>
                             <th rowSpan="2">COLA DE ALUMNOS</th>
 
                             {[...Array(numMaquinas)].map((_, i) => (
@@ -174,7 +174,12 @@ function TablaSimulacion({ data }) {
                                     <td>{fila.Evento.startsWith("Fin Mantenimiento") || fila.Evento === "Inicializacion" || fila.Evento === "Regreso Técnico" ? renderValue(fila['RND Mantenimiento']) : "-"}</td>
                                     <td>{fila.Evento.startsWith("Fin Mantenimiento") || fila.Evento === "Inicializacion" || fila.Evento === "Regreso Técnico" ? renderValue(fila['Tiempo Mantenimiento']) : "-"}</td>
                                     <td>{fila.Evento.startsWith("Fin Mantenimiento") || fila.Evento === "Inicializacion" || fila.Evento === "Regreso Técnico" ? renderValue(fila['Fin Mantenimiento']) : "-"}</td>
-                                    <td>{fila.Evento.startsWith("Fin Mantenimiento") || fila.Evento === "Inicializacion" || fila.Evento === "Regreso Técnico" ? renderValue(fila['Máquina Mant.']) : "-"}</td>
+                                    {/* <td>{fila.Evento.startsWith("Fin Mantenimiento") || fila.Evento === "Inicializacion" || fila.Evento === "Regreso Técnico" ? renderValue(fila['Máquina Mant.']) : "-"}</td> */}
+                                    <td>{
+                                        (fila.Evento.startsWith("Fin Mantenimiento") || fila.Evento === "Inicializacion" || fila.Evento === "Regreso Técnico")
+                                            ? parseInt(renderValue(fila['Máquina Mant.']), 10)
+                                            : "-"
+                                    }</td>
 
                                     {/* ESTADÍSTICAS TÉCNICO - Estos son acumulativos y se propagan */}
                                     <td>{renderValue(getVal('Tiempo Ocioso Tec.'))}</td>
@@ -182,7 +187,7 @@ function TablaSimulacion({ data }) {
                                     <td>{renderValue(getVal('Acum. Tiempo Trabajado Tec.'))}</td>
                                     <td>{renderValue(getVal('Promedio Tiempo Trabajado Tec.'))}</td>
 
-
+                                    <td>{parseInt(getVal('acumAbandonos'))}</td>
                                     <td>{parseInt(getVal('Cola'))}</td>
                                     {/* Eliminado: Tiempo Espera Acumulado y Promedio de Alumnos */}
 
