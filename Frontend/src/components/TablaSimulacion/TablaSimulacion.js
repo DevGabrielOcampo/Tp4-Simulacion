@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './tabla.css'; // Asumiendo que tu archivo CSS sigue siendo el mismo
 
 function TablaSimulacion({ data }) {
+    const [selectedRow, setSelectedRow] = useState(null);
     if (!Array.isArray(data) || data.length === 0) {
         return <p>Cargando datos o no hay datos disponibles...</p>;
     }
@@ -30,9 +31,32 @@ function TablaSimulacion({ data }) {
         return value;
     };
 
+    function copiarTabla() {
+        const tabla = document.querySelector('.tabla-simulacion');
+        if (!tabla) return;
+
+        // Crear un rango para seleccionar la tabla
+        const range = document.createRange();
+        range.selectNode(tabla);
+
+        // Limpiar selección anterior
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        // Ejecutar el comando copiar
+        document.execCommand('copy');
+
+        // Limpiar selección para no dejarlo marcado
+        selection.removeAllRanges();
+
+        alert('Tabla copiada al portapapeles, podés pegarla en Excel');
+    }
+
     return (
         <div className="tabla-container">
-            <h2>Estado de la Simulación</h2>
+
+            <button className="boton-copiar" onClick={copiarTabla}>Copiar tabla para Excel</button>
             <div className="tabla-wrapper">
                 <table border="1" className="tabla-simulacion">
                     <thead>
@@ -50,6 +74,7 @@ function TablaSimulacion({ data }) {
                             <th colSpan="4">DETALLE MANTENIMIENTO</th> {/* Colspan ajustado para solo mostrar datos relevantes del evento actual */}
                             <th colSpan="4">ESTADÍSTICAS TÉCNICO</th> {/* NUEVO: Encabezado para estadísticas del técnico */}
                             <th rowSpan="2">ACUM. ABANDONOS</th>
+                            <th rowSpan="2">% ABANDONOS</th>
                             <th rowSpan="2">COLA DE ALUMNOS</th>
 
                             {[...Array(numMaquinas)].map((_, i) => (
@@ -143,8 +168,11 @@ function TablaSimulacion({ data }) {
                                 return "-";
                             };
 
+                            const isSelected = selectedRow === index;
+
                             return (
-                                <tr key={`fila-${index}`}>
+
+                                <tr key={`fila-${index}`} className={isSelected ? 'selected' : ''} onClick={() => setSelectedRow(index)}>
                                     <td>{fila.Iteracion}</td>
                                     <td>{fila.Evento}</td>
                                     <td>{renderValue(fila.Reloj)}</td>
@@ -188,6 +216,8 @@ function TablaSimulacion({ data }) {
                                     <td>{renderValue(getVal('Promedio Tiempo Trabajado Tec.'))}</td>
 
                                     <td>{parseInt(getVal('acumAbandonos'))}</td>
+                                    <td>{isNaN(parseInt(getVal('porcAbandonos'))) ? 0.0 : parseInt(getVal('porcAbandonos'))}</td>
+
                                     <td>{parseInt(getVal('Cola'))}</td>
                                     {/* Eliminado: Tiempo Espera Acumulado y Promedio de Alumnos */}
 

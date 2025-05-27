@@ -124,6 +124,7 @@ class Simulacion implements Serializable {
 
     private int cola;
     private int acumAbandonos;
+    private double porcAbandonos;
     private final List<String> alumnosEnCola;
     private double tiempoActual;
     private final List<Map<String, Object>> resultados;
@@ -165,6 +166,7 @@ class Simulacion implements Serializable {
         //Inicializa variables para el estado de la simulación
         this.cola = 0;
         this.acumAbandonos = 0;
+        this.porcAbandonos = 0.0;
         this.tiempoActual = 0;
         this.resultados = new ArrayList<>();
         this.contadorAlumnos = 0;
@@ -248,6 +250,7 @@ class Simulacion implements Serializable {
     private void agregarEstadosAlumnos(Map<String, Object> estadoActual) {
         estadoActual.put("Cola", cola);
         estadoActual.put("acumAbandonos", acumAbandonos);
+        estadoActual.put("porcAbandonos", porcAbandonos/contadorAlumnos);
 
         int cantidadAlumnos = 0;
         for (int i = 1; i <= contadorAlumnos; i++) {
@@ -347,6 +350,18 @@ class Simulacion implements Serializable {
         estadoInicial.put("Tiempo Ocioso Tec.", 0.0);
         estadoInicial.put("Promedio Tiempo Ocioso Tec.", 0.0);
 
+        if (contadorAlumnos > 0) {
+            porcAbandonos = ((double) acumAbandonos / contadorAlumnos) * 100;
+            estadoInicial.put("porcAbandonos", porcAbandonos);
+        }
+        else{
+            porcAbandonos = 0.0;
+            estadoInicial.put("porcAbandonos", porcAbandonos);
+        }
+
+
+
+
         for (int i = 0; i < equipos.size(); i++) {
             Map<String, Object> equipo = equipos.get(i);
             estadoInicial.put("Máquina " + (i + 1), ((EstadoEquipo) equipo.get("estado")).getValue());
@@ -372,6 +387,8 @@ class Simulacion implements Serializable {
                 }
             }
 
+
+
             tiempoOciosoTecnicoAcumulado = Math.max(0, tiempoOciosoTecnicoAcumulado);
             tiempoActual = proximoTiempoEvento;
             String tipoEvento = (String) evento[0];
@@ -379,6 +396,7 @@ class Simulacion implements Serializable {
             Map<String, Object> estado = new LinkedHashMap<>();
 
             estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
+
 
             //Copiar el estado anterior al nuevo estado, pero filtrando ciertos campos que deben
             // recalcularse o reiniciarse en cada iteración.
@@ -480,6 +498,13 @@ class Simulacion implements Serializable {
             iteracion++;
             //Número de fila de la simulación
             estado.put("Iteracion", iteracion);
+
+            if (contadorAlumnos > 0) {
+                porcAbandonos = ((double) acumAbandonos / contadorAlumnos) * 100;
+            } else {
+                porcAbandonos = 0.0;
+            }
+            estado.put("porcAbandonos", Math.round(porcAbandonos * 100.0) / 100.0);
         }
 
         //Pruebas para imprimir por consola
