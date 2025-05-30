@@ -7,15 +7,20 @@ function TablaSimulacion({ data }) {
         return <p>Cargando datos o no hay datos disponibles...</p>;
     }
 
-    const primeraIteracion = data[0];
+    
     const numMaquinas = 5;
 
     // Determinar dinámicamente maxAlumnos basado en el campo 'max_alumnos' de los datos
     // Esto hace que la tabla sea adaptable si el número de alumnos cambia en el futuro
-    let maxAlumnos = 0;
-    if (primeraIteracion && typeof primeraIteracion.max_alumnos === 'number') {
-        maxAlumnos = primeraIteracion.max_alumnos;
-    }
+    //let maxAlumnos = 0;
+    const maxAlumnos = data.reduce((max, row) => {
+        const alumnosEnFila = Object.keys(row).filter(key =>
+            key.toLowerCase().includes("estado a") // Flexible con mayúsculas/espacios
+        ).length;
+        return Math.max(max, alumnosEnFila);
+    }, 0);
+
+    console.log("Número máximo de alumnos:", maxAlumnos);
 
     // Función auxiliar para renderizar valores, manejando null/undefined/vacío y formato de números
     const renderValue = (value) => {
@@ -227,8 +232,11 @@ function TablaSimulacion({ data }) {
                                         </td>
                                     ))}
 
+
                                     {[...Array(maxAlumnos)].map((_, i) => {
                                         const alumnoId = `A${i + 1}`;
+                                        const estado = getVal(`Estado ${alumnoId}`);
+                                        console.log(`[Fila ${index}] ${alumnoId}:`, estado, "Datos completos:", fila);
                                         return (
                                             <React.Fragment key={`alumno-data-${alumnoId}`}>
                                                 <td>{renderValue(getVal(`Estado ${alumnoId}`))}</td>

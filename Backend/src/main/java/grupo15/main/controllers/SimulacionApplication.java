@@ -508,8 +508,8 @@ class Simulacion implements Serializable {
         }
 
         //Pruebas para imprimir por consola
-        ObjectMapper mapper = new ObjectMapper();
-        System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultados));
+        //ObjectMapper mapper = new ObjectMapper();
+        //System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultados));
 
         //Si pasamos minuto desde distinto a cero, elimina la primera linea de inicialización
         if (minutoDesde != 0) {
