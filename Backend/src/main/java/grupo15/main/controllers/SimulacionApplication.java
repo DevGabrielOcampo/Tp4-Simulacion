@@ -70,22 +70,28 @@ public class SimulacionApplication {
                 rangoRegresoTecnico
         );
 
-        List<Map<String, Object>> resultadosCompletos = simulacion.simular(minutosSimulacion.doubleValue());
+        //List<Map<String, Object>> resultadosCompletos = simulacion.simular(minutosSimulacion.doubleValue());
 
-        List<Map<String, Object>> resultadosFiltrados = new ArrayList<>();
-        int count = 0;
-        for (Map<String, Object> fila : resultadosCompletos) {
-            double reloj = (Double) fila.get("Reloj");
-            if (reloj >= minutoDesde) {
-                resultadosFiltrados.add(fila);
-                count++;
-                if (count >= iteracionesMostrar) {
-                    break;
-                }
-            }
-        }
+        //List<Map<String, Object>> resultadosFiltrados = new ArrayList<>();
+        //int count = 0;
+        //for (Map<String, Object> fila : resultadosCompletos) {
+        //    double reloj = (Double) fila.get("Reloj");
+        //    if (reloj >= minutoDesde) {
+        //        resultadosFiltrados.add(fila);
+        //        count++;
+        //        if (count >= iteracionesMostrar) {
+        //            break;
+        //        }
+        //    }
+        //}
 
-        return resultadosFiltrados;
+        //return resultadosFiltrados;
+
+        return simulacion.simularFiltrado(
+                minutosSimulacion.doubleValue(),
+                minutoDesde.doubleValue(),
+                iteracionesMostrar.intValue()
+        );
     }
 }
 
@@ -283,6 +289,214 @@ class Simulacion implements Serializable {
         eventos.sort(Comparator.comparingDouble(o -> (double) o[1]));
         return eventos.get(0);
     }
+
+    public List<Map<String, Object>> simularFiltrado(double tiempoTotal, double minutoDesde, int iteracionesMostrar) {
+        double[] llegadaResult = generarTiempoLlegada();
+        double rndLlegada = llegadaResult[0];
+        double tiempoLlegada = llegadaResult[1];
+
+        tiempoActual = 0;
+        proximaLlegada = tiempoLlegada;
+        contadorAlumnos = 0;
+
+        tiempoOciosoTecnicoAcumulado = 0.0;
+        tiempoTrabajadoTecnicoAcumulado = 0.0;
+        cantidadMantenimientosCompletados = 0;
+
+        // Inicialización del primer mantenimiento
+        Map<String, Object> primerEquipoMantenimiento = equipos.get(0);
+        double[] mantResult = generarTiempoMantenimiento();
+        double rndMantInicial = mantResult[0];
+        double tiempoMantInicial = mantResult[1];
+
+        primerEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
+        primerEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMantInicial);
+        primerEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMantInicial);
+        proximaComputadoraMantenimiento = 1;
+        proximoRegresoTecnico = null;
+
+        // Creamos el estado inicial
+        Map<String, Object> estadoInicial = crearEstadoInicial(rndLlegada, tiempoLlegada, rndMantInicial, tiempoMantInicial, primerEquipoMantenimiento);
+
+        List<Map<String, Object>> resultadosFiltrados = new ArrayList<>();
+
+        // Solo agregamos el estado inicial si está dentro del rango filtrado
+        if (tiempoActual >= minutoDesde) {
+            resultadosFiltrados.add(estadoInicial);
+        }
+
+        Map<String, Object> estadoAnterior = estadoInicial;
+
+        while (tiempoActual < tiempoTotal && resultadosFiltrados.size() < iteracionesMostrar) {
+            Object[] evento = obtenerProximoEvento();
+            double proximoTiempoEvento = (double) evento[1];
+
+            if (proximoTiempoEvento > tiempoTotal) {
+                break;
+            }
+
+            // Cálculo de tiempo ocioso (igual que antes)
+            double duracionIntervalo = proximoTiempoEvento - tiempoActual;
+            if (duracionIntervalo > 0) {
+                if (!isTechnicianBusyMaintaining()) {
+                    if (proximoRegresoTecnico == null || proximoRegresoTecnico <= tiempoActual) {
+                        tiempoOciosoTecnicoAcumulado += duracionIntervalo;
+                    }
+                }
+            }
+            tiempoOciosoTecnicoAcumulado = Math.max(0, tiempoOciosoTecnicoAcumulado);
+
+            tiempoActual = proximoTiempoEvento;
+            String tipoEvento = (String) evento[0];
+
+            Map<String, Object> estado = new LinkedHashMap<>();
+            estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
+
+            // Copiar estados relevantes del estado anterior
+            copiarEstadosRelevantes(estadoAnterior, estado);
+
+            // Procesar el evento (igual que antes)
+            switch (tipoEvento) {
+                case "llegada":
+                    double[] newLlegadaResult = generarTiempoLlegada();
+                    rndLlegada = newLlegadaResult[0];
+                    tiempoLlegada = newLlegadaResult[1];
+                    proximaLlegada = tiempoActual + tiempoLlegada;
+                    contadorAlumnos++;
+                    String idActualAlumno = "A" + contadorAlumnos;
+                    procesarLlegada(idActualAlumno, rndLlegada, tiempoLlegada, estado);
+                    break;
+                case "fin_mantenimiento":
+                    Map<String, Object> equipoFinMant = (Map<String, Object>) evento[2];
+                    procesarFinMantenimiento(equipoFinMant, estado);
+                    break;
+                case "fin_inscripcion":
+                    Map<String, Object> equipoFinInsc = (Map<String, Object>) evento[2];
+                    procesarFinInscripcion(equipoFinInsc, estado);
+                    break;
+                case "regreso_tecnico":
+                    procesarRegresoTecnico(estado);
+                    break;
+            }
+
+            // Actualizar estados de máquinas y alumnos
+            actualizarEstadosMaquinas(estado);
+            estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
+            estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
+
+            // Actualizar estadísticas del técnico
+            actualizarEstadisticasTecnico(estado);
+
+            agregarEstadosAlumnos(estado);
+
+            // Solo agregamos al resultado si está dentro del rango y no hemos alcanzado el límite
+            if (tiempoActual >= minutoDesde && resultadosFiltrados.size() < iteracionesMostrar) {
+                resultadosFiltrados.add(estado);
+            }
+
+            estadoAnterior = estado;
+        }
+
+        return resultadosFiltrados;
+    }
+
+    // Métodos auxiliares para organizar mejor el código
+    private Map<String, Object> crearEstadoInicial(double rndLlegada, double tiempoLlegada,
+                                                   double rndMantInicial, double tiempoMantInicial,
+                                                   Map<String, Object> primerEquipoMantenimiento) {
+
+        Map<String, Object> estadoInicial = new LinkedHashMap<>();
+        estadoInicial.put("Evento", "Inicializacion");
+        estadoInicial.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
+
+        estadoInicial.put("RND Llegada", Math.round(rndLlegada * 100.0) / 100.0);
+        estadoInicial.put("Tiempo Llegada", Math.round(tiempoLlegada * 100.0) / 100.0);
+        estadoInicial.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
+
+        estadoInicial.put("Máquina", null);
+        estadoInicial.put("RND Inscripción", null);
+        estadoInicial.put("Tiempo Inscripción", null);
+        estadoInicial.put("Fin Inscripción", null);
+
+        estadoInicial.put("Máquina Mant.", primerEquipoMantenimiento.get("id"));
+        estadoInicial.put("RND Mantenimiento", Math.round(rndMantInicial * 100.0) / 100.0);
+        estadoInicial.put("Tiempo Mantenimiento", Math.round(tiempoMantInicial * 100.0) / 100.0);
+        estadoInicial.put("Fin Mantenimiento", Math.round((Double) primerEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
+        estadoInicial.put("RND Tiempo Vuelta", null);
+        estadoInicial.put("Tiempo Vuelta", null);
+        estadoInicial.put("Próximo Inicio Mantenimiento", null);
+
+        // Estadísticas del técnico
+        estadoInicial.put("Acum. Tiempo Trabajado Tec.", 0.0);
+        estadoInicial.put("Promedio Tiempo Trabajado Tec.", 0.0);
+        estadoInicial.put("Tiempo Ocioso Tec.", 0.0);
+        estadoInicial.put("Promedio Tiempo Ocioso Tec.", 0.0);
+
+        // Estados de las máquinas
+        for (int i = 0; i < equipos.size(); i++) {
+            Map<String, Object> equipo = equipos.get(i);
+            estadoInicial.put("Máquina " + (i + 1), ((EstadoEquipo) equipo.get("estado")).getValue());
+            estadoInicial.put("Fin Inscripción M" + (i + 1), null);
+            estadoInicial.put("Fin Mantenimiento M" + (i + 1), equipo.get("fin_mantenimiento") != null ?
+                    Math.round((Double) equipo.get("fin_mantenimiento") * 100.0) / 100.0 : null);
+            estadoInicial.put("Alumno M" + (i + 1), null);
+        }
+
+        agregarEstadosAlumnos(estadoInicial);
+        return estadoInicial;
+    }
+
+    private void copiarEstadosRelevantes(Map<String, Object> origen, Map<String, Object> destino) {
+        // Copiamos todos los campos excepto los específicos del evento actual
+        for (Map.Entry<String, Object> entry : origen.entrySet()) {
+            if (!entry.getKey().equals("Evento") && !entry.getKey().equals("Reloj")
+                    && !entry.getKey().equals("RND Llegada")
+                    && !entry.getKey().equals("Tiempo Llegada")
+                    && !entry.getKey().equals("RND Inscripción")
+                    && !entry.getKey().equals("Tiempo Inscripción")
+                    && !entry.getKey().equals("Máquina")
+            //        && !entry.getKey().equals("RND Mantenimiento")
+            //        && !entry.getKey().equals("Tiempo Mantenimiento")
+            //        && !entry.getKey().equals("Fin Mantenimiento")
+            //        && !entry.getKey().equals("Máquina Mant.")
+                    && !entry.getKey().equals("RND Tiempo Vuelta")
+                    && !entry.getKey().equals("Tiempo Vuelta")) {
+                destino.put(entry.getKey(), entry.getValue());
+            }
+        }
+    }
+
+    private void actualizarEstadosMaquinas(Map<String, Object> estado) {
+        for (int i = 0; i < equipos.size(); i++) {
+            Map<String, Object> equipo = equipos.get(i);
+            estado.put("Máquina " + (i + 1), ((EstadoEquipo) equipo.get("estado")).getValue());
+
+            Double finInsc = (Double) equipo.get("fin_inscripcion");
+            estado.put("Fin Inscripción M" + (i + 1),
+                    finInsc != null ? Math.round(finInsc * 100.0) / 100.0 : null);
+
+            Double finMant = (Double) equipo.get("fin_mantenimiento");
+            estado.put("Fin Mantenimiento M" + (i + 1),
+                    finMant != null ? Math.round(finMant * 100.0) / 100.0 : null);
+
+            estado.put("Alumno M" + (i + 1), equipo.get("alumno_actual"));
+        }
+    }
+
+    private void actualizarEstadisticasTecnico(Map<String, Object> estado) {
+        estado.put("Tiempo Ocioso Tec.", Math.round(tiempoOciosoTecnicoAcumulado * 100.0) / 100.0);
+
+        double promedioOcioso = cantidadMantenimientosCompletados > 0 ?
+                (tiempoOciosoTecnicoAcumulado / cantidadMantenimientosCompletados) : 0.0;
+        estado.put("Promedio Tiempo Ocioso Tec.", Math.round(promedioOcioso * 100.0) / 100.0);
+
+        estado.put("Acum. Tiempo Trabajado Tec.", Math.round(tiempoTrabajadoTecnicoAcumulado * 100.0) / 100.0);
+
+        double promedioTrabajado = cantidadMantenimientosCompletados > 0 ?
+                (tiempoTrabajadoTecnicoAcumulado / cantidadMantenimientosCompletados) : 0.0;
+        estado.put("Promedio Tiempo Trabajado Tec.", Math.round(promedioTrabajado * 100.0) / 100.0);
+    }
+
 
     public List<Map<String, Object>> simular(double tiempoTotal) {
         double[] llegadaResult = generarTiempoLlegada();
