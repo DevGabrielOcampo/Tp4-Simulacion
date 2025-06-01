@@ -191,8 +191,8 @@ class Simulacion implements Serializable {
     }
 
     private double[] generarTiempoRegreso() {
-        double rnd = ThreadLocalRandom.current().nextDouble();
-        double tiempoRegreso = baseRegresoTecnico - rangoRegresoTecnico + (2 * rangoRegresoTecnico) * rnd;
+        double rnd = Math.random() < 0.5 ? -1 : 1;
+        double tiempoRegreso = baseRegresoTecnico + rangoRegresoTecnico * rnd;
         if (tiempoRegreso < 0) {
             tiempoRegreso = 0;
         }
@@ -219,12 +219,10 @@ class Simulacion implements Serializable {
 
 
     private void actualizarEstadoAlumno(String idAlumno, EstadoAlumno estado) {
-        System.out.println(">> actualizarEstadoAlumno: alumno=" + idAlumno + ", nuevo estado=" + estado);
 
         if (estado == EstadoAlumno.ATENCION_FINALIZADA) {
             estadoAlumnos.remove(idAlumno);
             alumnosEnCola.remove(idAlumno);
-            System.out.println("   -> Alumno " + idAlumno + " eliminado completamente.");
         } else {
             if (!estadoAlumnos.containsKey(idAlumno) || !estadoAlumnos.get(idAlumno).equals(estado)) {
                 estadoAlumnos.put(idAlumno, estado);
@@ -232,17 +230,13 @@ class Simulacion implements Serializable {
                 if (estado == EstadoAlumno.EN_COLA) {
                     if (!alumnosEnCola.contains(idAlumno)) {
                         alumnosEnCola.add(idAlumno);
-                        System.out.println("   -> Alumno " + idAlumno + " agregado a cola.");
                     }
                 } else if (estado == EstadoAlumno.SIENDO_ATENDIDO) {
                     alumnosEnCola.remove(idAlumno);
-                    System.out.println("   -> Alumno " + idAlumno + " removido de cola (si estaba).");
                 }
             }
         }
 
-        System.out.println("Estado actual alumnos: " + estadoAlumnos);
-        System.out.println("Alumnos en cola: " + alumnosEnCola);
     }
 
 
@@ -257,14 +251,11 @@ class Simulacion implements Serializable {
                 EstadoAlumno est = estadoAlumnos.get(alumnoId);
                 estadoActual.put("Estado " + alumnoId, est.getValue());
                 currentMaxAlumnos = i;
-                System.out.println("   -> Agregando estado de " + alumnoId + ": " + est);
             } else {
                 // No hacer nada: NO agregar la clave al mapa
-                System.out.println("   -> Alumno " + alumnoId + " no existe en estadoAlumnos, no se agrega al JSON");
             }
         }
         estadoActual.put("max_alumnos", currentMaxAlumnos);
-        System.out.println("max_alumnos actualizado a: " + currentMaxAlumnos);
     }
 
 
@@ -323,7 +314,6 @@ class Simulacion implements Serializable {
         proximaComputadoraMantenimiento = 1;
         proximoRegresoTecnico = null;
 
-        System.out.println("Inicialización: tiempoActual=" + tiempoActual + ", proximaLlegada=" + proximaLlegada);
 
         Map<String, Object> estadoInicial = new LinkedHashMap<>();
         estadoInicial.put("Iteracion", 0);
@@ -369,6 +359,7 @@ class Simulacion implements Serializable {
         Integer iteracion = 0;
         while (tiempoActual < tiempoTotal && iteracion < 100000) {
             iteracion++;
+            System.out.println(iteracion);
             if (iteracionesMostradasCount >= iteracionesMostrar && tiempoActual >= minutoDesde) {
                 break;
             }
@@ -393,8 +384,6 @@ class Simulacion implements Serializable {
             tiempoActual = proximoTiempoEvento;
             String tipoEvento = (String) evento[0];
 
-            System.out.println("\n--- Iteración " + iteracion + " ---");
-            System.out.println("Evento: " + tipoEvento + ", tiempoActual: " + tiempoActual);
 
             Map<String, Object> estado = new LinkedHashMap<>();
             estado.put("Iteracion", iteracion);
@@ -439,21 +428,17 @@ class Simulacion implements Serializable {
                     proximaLlegada = tiempoActual + tiempoLlegada;
                     contadorAlumnos++;
                     String idActualAlumno = "A" + contadorAlumnos;
-                    System.out.println("Procesando llegada de: " + idActualAlumno);
                     procesarLlegada(idActualAlumno, rndLlegada, tiempoLlegada, estado);
                     break;
                 case "fin_mantenimiento":
                     Map<String, Object> equipoFinMant = (Map<String, Object>) evento[2];
-                    System.out.println("Procesando fin de mantenimiento de máquina: " + equipoFinMant.get("id"));
                     procesarFinMantenimiento(equipoFinMant, estado);
                     break;
                 case "fin_inscripcion":
                     Map<String, Object> equipoFinInsc = (Map<String, Object>) evento[2];
-                    System.out.println("Procesando fin de inscripción de máquina: " + equipoFinInsc.get("id"));
                     procesarFinInscripcion(equipoFinInsc, estado);
                     break;
                 case "regreso_tecnico":
-                    System.out.println("Procesando regreso técnico");
                     procesarRegresoTecnico(estado);
                     break;
             }
@@ -483,7 +468,6 @@ class Simulacion implements Serializable {
             }
             estadoAnterior = estado;
 
-            System.out.println("Fin iteración " + iteracion + ": estadoAlumnos = " + estadoAlumnos);
         }
 
         return resultadosFiltrados;
@@ -498,7 +482,6 @@ class Simulacion implements Serializable {
         // --- Modificación aquí: Verificar si la cola es de 5 o más ---
         if (cola >= 5) {
             actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA);
-            System.out.println("Después de procesar llegada: estadoAlumnos = " + estadoAlumnos);
             estado.put("Máquina", null); // No ocupa máquina
             estado.put("RND Inscripción", null);
             estado.put("Tiempo Inscripción", null);
@@ -608,7 +591,6 @@ class Simulacion implements Serializable {
     private void procesarFinInscripcion(Map<String, Object> equipo, Map<String, Object> estado) {
         String alumnoFinalizado = (String) equipo.get("alumno_actual");
         actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.ATENCION_FINALIZADA);
-        System.out.println("Después de procesar fin inscripción: estadoAlumnos = " + estadoAlumnos);
 
         equipo.put("estado", EstadoEquipo.LIBRE);
         equipo.put("fin_inscripcion", null);

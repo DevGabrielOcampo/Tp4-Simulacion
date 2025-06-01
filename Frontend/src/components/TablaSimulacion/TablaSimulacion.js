@@ -8,26 +8,7 @@ function TablaSimulacion({ data }) {
 
     const numMaquinas = 5;
 
-    const renderValue = (value) => {
-        if (value === null || value === undefined || value === "") {
-            return "-";
-        }
-        if (typeof value === 'number') {
-            return value.toFixed(2);
-        }
-        return value;
-    };
-
-    const renderIntValue = (value) => {
-        if (value === null || value === undefined || value === "") {
-            return "-";
-        }
-        if (typeof value === 'number') {
-            return Math.floor(value);
-        }
-        return value;
-    };
-
+    // Recopilar y ordenar todos los IDs de alumno
     let allAlumnoIds = new Set();
     data.forEach(row => {
         for (const key in row) {
@@ -41,6 +22,111 @@ function TablaSimulacion({ data }) {
         const numB = parseInt(b.replace('A', ''), 10);
         return numA - numB;
     });
+
+    // Keys que deberían propagarse a lo largo de las filas
+    const keysToPropagate = [
+        'Próxima Llegada',
+        'Próximo Inicio Mantenimiento',
+        'Acum. Tiempo Trabajado Tec.',
+        'Tiempo Ocioso Tec.',
+        'Cola',
+        'Fin Mantenimiento',
+        'Máquina Mant.',
+    ];
+
+    // Aseguramos que los estados de las máquinas se propaguen
+    for (let i = 1; i <= numMaquinas; i++) {
+        keysToPropagate.push(`Máquina ${i}`); // Estado de la máquina (Ej: "Libre", "Ocupado")
+        keysToPropagate.push(`Fin Inscripción M${i}`); // Tiempo de fin de inscripción de esa máquina
+    }
+
+    // Los estados de los alumnos NO SE INCLUYEN AQUÍ para propagación general,
+    // ya que su lógica es muy específica y se maneja por separado para un reseteo más estricto.
+    // sortedAllAlumnoIds.forEach(alumnoId => {
+    //     keysToPropagate.push(`Estado ${alumnoId}`);
+    // });
+
+    const renderValue = (value) => {
+        if (value === null || value === undefined || value === "" || (typeof value === 'number' && isNaN(value))) {
+            return "-";
+        }
+        if (typeof value === 'number') {
+            return value.toFixed(2);
+        }
+        return value;
+    };
+
+    const renderIntValue = (value) => {
+        if (value === null || value === undefined || value === "" || (typeof value === 'number' && isNaN(value))) {
+            return "-";
+        }
+        if (typeof value === 'number') {
+            return Math.floor(value);
+        }
+        return value;
+    };
+
+    // Función para obtener la máquina a la que un alumno está asignado en una fila específica.
+    const getAlumnoMachineInRow = (alumnoId, rowData) => {
+        for (let j = 1; j <= numMaquinas; j++) {
+            if (rowData[`Alumno M${j}`] === alumnoId) {
+                return j;
+            }
+        }
+        return null;
+    };
+
+    // --- CONSTRUCCIÓN DEL ESTADO PROCESADO UTILIZANDO REDUCE ---
+    const processedData = data.reduce((acc, filaOriginal, index) => {
+        const prevProcessedRow = acc.length > 0 ? acc[acc.length - 1] : {};
+        const currentRowState = { ...filaOriginal }; // Copia inicial de la fila original
+
+        // 1. Lógica general de propagación para todos los 'keysToPropagate'
+        keysToPropagate.forEach(key => {
+            if ((filaOriginal[key] === undefined || filaOriginal[key] === null || filaOriginal[key] === "") &&
+                (prevProcessedRow[key] !== undefined && prevProcessedRow[key] !== null && prevProcessedRow[key] !== "")) {
+                currentRowState[key] = prevProcessedRow[key];
+            }
+        });
+
+        // 2. Lógica ESPECÍFICA y estricta para el estado del alumno
+        sortedAllAlumnoIds.forEach(alumnoId => {
+            const estadoKey = `Estado ${alumnoId}`;
+            const estadoEnFilaOriginal = filaOriginal[estadoKey];
+            const maquinaAsignadaEnFilaOriginal = getAlumnoMachineInRow(alumnoId, filaOriginal); // ¿Está en una máquina en esta fila original?
+
+            // **Nuevo enfoque para el estado del alumno:**
+            // Si el estado está explícitamente en la fila original (y no es 'FS'), ese tiene prioridad.
+            if (estadoEnFilaOriginal !== undefined && estadoEnFilaOriginal !== null && estadoEnFilaOriginal !== "" && estadoEnFilaOriginal !== 'FS') {
+                currentRowState[estadoKey] = estadoEnFilaOriginal;
+            }
+            // Si el evento actual es "Fin Inscripción" y es para este alumno,
+            // o si el estado en la fila original es 'FS', entonces el alumno YA NO ESTÁ.
+            else if ((filaOriginal.Evento && filaOriginal.Evento.includes("Fin Inscripción") &&
+                      filaOriginal[`Alumno M${filaOriginal['Máquina']}`] === alumnoId) ||
+                     estadoEnFilaOriginal === 'FS') {
+                currentRowState[estadoKey] = null; // Fuerza a null (para que se muestre '-')
+            }
+            // Si no está en la fila original, y NO está asignado a una máquina en la fila original,
+            // entonces su estado DEBE ser null, sin importar la propagación anterior.
+            else if (maquinaAsignadaEnFilaOriginal === null) {
+                currentRowState[estadoKey] = null; // Si no hay máquina, el estado se resetea.
+            }
+            // En cualquier otro caso (no está en fila original, no es evento de salida, y SÍ tiene máquina asignada),
+            // se propaga el estado de la fila procesada anterior.
+            else {
+                const prevEstado = prevProcessedRow[estadoKey];
+                if (prevEstado !== undefined && prevEstado !== null && prevEstado !== "" && prevEstado !== 'FS') {
+                    currentRowState[estadoKey] = prevEstado;
+                } else {
+                    currentRowState[estadoKey] = null; // Por si acaso no se encuentra un estado válido para propagar
+                }
+            }
+        });
+
+        acc.push(currentRowState); // Agregar la fila procesada al acumulador
+        return acc;
+    }, []);
 
     return (
         <div className="tabla-container">
@@ -98,110 +184,33 @@ function TablaSimulacion({ data }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.map((fila, index) => {
-                            // Definimos explícitamente qué claves deben propagarse (mantener su valor de la fila anterior)
-                            // y cuáles deben ser específicas de la fila actual (null si no están presentes).
-                            const propagatedKeys = [
-                                'Próxima Llegada',
-                                'Próximo Inicio Mantenimiento',
-                                'Acum. Tiempo Trabajado Tec.',
-                                'Tiempo Ocioso Tec.',
-                                'Promedio Tiempo Ocioso Tec.',
-                                'Cola',
-                                'Fin Mantenimiento', // Ahora propagamos el 'Fin Mantenimiento' general
-                                'Máquina Mant.', // Y la 'Máquina Mant.' general
-                                // Estados de máquinas se propagan si no cambian en la fila actual
-                                ...Array(numMaquinas).fill(0).map((_, i) => `Máquina ${i + 1}`),
-                                // También propagamos los Fin Mantenimiento específicos de cada máquina
-                                ...Array(numMaquinas).fill(0).map((_, i) => `Fin Mantenimiento M${i + 1}`)
-                            ];
-
-                            // Función para obtener valores:
-                            // - Si el valor existe en la fila actual, lo devuelve.
-                            // - Si no existe en la fila actual, pero la clave está en `propagatedKeys`, lo busca en la fila anterior.
-                            // - De lo contrario, devuelve null (renderValue lo convierte a "-").
-                            const getValue = (key) => {
-                                // Prioridad: valor de la fila actual
-                                if (fila[key] !== undefined && fila[key] !== null && fila[key] !== "") {
-                                    return fila[key];
-                                }
-                                // Si no está en la fila actual, y la clave es una de las que se deben propagar,
-                                // busca el valor de la fila anterior.
-                                if (propagatedKeys.includes(key) && index > 0) {
-                                    return data[index - 1][key];
-                                }
-                                // Para todas las demás claves (RNDs, Tiempos de Evento, Fines de Evento, Estados de Alumno, Máquina Asignada a Alumno)
-                                // NO se propagan si no están explícitamente en la fila actual.
-                                return null;
-                            };
-
+                        {processedData.map((fila, index) => {
                             const isLlegadaEvent = fila.Evento.startsWith("Llegada Alumno");
-                            const rndLlegada = isLlegadaEvent ? fila['RND Llegada'] : null;
-                            const tiempoLlegada = isLlegadaEvent ? fila['Tiempo Llegada'] : null;
+                            const rndLlegada = isLlegadaEvent ? data[index]['RND Llegada'] : null;
+                            const tiempoLlegada = isLlegadaEvent ? data[index]['Tiempo Llegada'] : null;
 
                             const getInscripcionRND = (machineId) => {
-                                if ((fila.Evento.includes("Llegada Alumno") || fila.Evento.includes("Fin Inscripción")) && fila['Máquina'] === machineId) {
-                                    return fila['RND Inscripción'];
+                                if ((data[index].Evento.includes("Llegada Alumno") || data[index].Evento.includes("Fin Inscripción")) && data[index]['Máquina'] === machineId) {
+                                    return data[index]['RND Inscripción'];
                                 }
                                 return null;
                             };
 
                             const getInscripcionTiempo = (machineId) => {
-                                if ((fila.Evento.includes("Llegada Alumno") || fila.Evento.includes("Fin Inscripción")) && fila['Máquina'] === machineId) {
-                                    return fila['Tiempo Inscripción'];
+                                if ((data[index].Evento.includes("Llegada Alumno") || data[index].Evento.includes("Fin Inscripción")) && data[index]['Máquina'] === machineId) {
+                                    return data[index]['Tiempo Inscripción'];
                                 }
                                 return null;
                             };
-                            
-                            // Fin Inscripción: Obtenemos el valor directamente de la fila, no se propaga
-                            const getFinInscripcion = (machineId) => fila[`Fin Inscripción M${machineId}`];
-
-                            // minFinMant y maquinaMant deben leer directamente de la fila 'Fin Mantenimiento' y 'Máquina Mant.'
-                            // y estos sí deben propagarse si no cambian.
-                            const finMantenimientoGeneral = getValue('Fin Mantenimiento');
-                            const maquinaMantenimientoGeneral = getValue('Máquina Mant.');
-
-
-                            // **Modificación clave para el estado y máquina del alumno**
-                            const getAlumnoDisplayInfo = (alumnoId) => {
-                                const estadoActual = fila[`Estado ${alumnoId}`];
-                                let maquinaActual = null;
-                                for (let j = 1; j <= numMaquinas; j++) {
-                                    // Verifica si la máquina tiene un alumno asignado en esta fila y si es el alumno actual
-                                    if (fila[`Alumno M${j}`] === alumnoId) {
-                                        maquinaActual = j;
-                                        break;
-                                    }
-                                }
-
-                                if (index > 0) {
-                                    const prevFila = data[index - 1];
-                                    const prevEvento = prevFila.Evento;
-                                    
-                                    const prevFinInscripcionMatch = prevEvento.match(/Fin Inscripción Máq\. M(\d+) Alumno (A\d+)/);
-                                    const alumnoTerminoInscripcionEnFilaAnterior = prevFinInscripcionMatch && prevFinInscripcionMatch[2] === alumnoId;
-
-                                    if (alumnoTerminoInscripcionEnFilaAnterior) {
-                                        // Si el alumno terminó la inscripción en la fila anterior y ahora no tiene estado o está "AF"
-                                        // O si el estado en esta fila es "AF"
-                                        if (estadoActual === 'AF' || estadoActual === undefined || estadoActual === null) {
-                                            return { estado: "FS", maquina: null }; // Forzar a "FS" y nulo en la siguiente fila
-                                        }
-                                    }
-                                }
-                                
-                                return { estado: estadoActual, maquina: maquinaActual };
-                            };
-
 
                             return (
                                 <tr key={`fila-${index}`}>
-                                    <td>{fila['Iteracion']}</td>
+                                    <td>{renderIntValue(fila['Iteracion'])}</td>
                                     <td>{fila.Evento}</td>
                                     <td>{renderValue(fila.Reloj)}</td>
                                     <td>{renderValue(rndLlegada)}</td>
                                     <td>{renderValue(tiempoLlegada)}</td>
-                                    <td>{renderValue(getValue('Próxima Llegada'))}</td>
+                                    <td>{renderValue(fila['Próxima Llegada'])}</td>
 
                                     {[...Array(numMaquinas)].map((_, i) => {
                                         const machineId = i + 1;
@@ -209,36 +218,59 @@ function TablaSimulacion({ data }) {
                                             <React.Fragment key={`inscripcion-${machineId}`}>
                                                 <td>{renderValue(getInscripcionRND(machineId))}</td>
                                                 <td>{renderValue(getInscripcionTiempo(machineId))}</td>
-                                                <td>{renderValue(getFinInscripcion(machineId))}</td>
+                                                <td>{renderValue(fila[`Fin Inscripción M${machineId}`])}</td>
                                             </React.Fragment>
                                         );
                                     })}
 
-                                    <td>{renderValue(fila['RND Tiempo Vuelta'])}</td>
-                                    <td>{renderValue(fila['Tiempo Vuelta'])}</td>
-                                    <td>{renderValue(getValue('Próximo Inicio Mantenimiento'))}</td>
+                                    <td>{renderValue(data[index]['RND Tiempo Vuelta'])}</td>
+                                    <td>{renderValue(data[index]['Tiempo Vuelta'])}</td>
+                                    <td>{renderValue(fila['Próximo Inicio Mantenimiento'])}</td>
 
-                                    {/* DETALLE MANTENIMIENTO: Se muestra RND/Tiempo Mantenimiento solo si es el evento */}
-                                    <td>{renderValue(fila.Evento.includes("Inicio Mantenimiento") ? fila['RND Mantenimiento'] : null)}</td>
-                                    <td>{renderValue(fila.Evento.includes("Inicio Mantenimiento") ? fila['Tiempo Mantenimiento'] : null)}</td>
-                                    <td>{renderValue(finMantenimientoGeneral)}</td> {/* Usa el valor propagado */}
-                                    <td>{renderIntValue(maquinaMantenimientoGeneral)}</td> {/* Usa el valor propagado */}
+                                    <td>{renderValue(data[index]['RND Mantenimiento'])}</td>
+                                    <td>{renderValue(data[index]['Tiempo Mantenimiento'])}</td>
+                                    <td>{renderValue(fila['Fin Mantenimiento'])}</td>
+                                    <td>{renderIntValue(fila['Máquina Mant.'])}</td>
 
-                                    <td>{renderValue(getValue('Acum. Tiempo Trabajado Tec.'))}</td>
-                                    <td>{renderValue(getValue('Tiempo Ocioso Tec.'))}</td>
-                                    {/* Para el promedio y porcentaje, si el tiempo total es 0, evitamos división por 0 */}
-                                    <td>{renderValue((parseFloat(getValue('Tiempo Ocioso Tec.')) || 0) / ((parseFloat(getValue('Acum. Tiempo Trabajado Tec.')) || 0) + (parseFloat(getValue('Tiempo Ocioso Tec.')) || 0) || 1))}</td>
-                                    <td>{renderValue(((parseFloat(getValue('Tiempo Ocioso Tec.')) || 0) * 100 / ((parseFloat(getValue('Acum. Tiempo Trabajado Tec.')) || 0) + (parseFloat(getValue('Tiempo Ocioso Tec.')) || 0) || 1)))}%</td>
+                                    <td>{renderValue(fila['Acum. Tiempo Trabajado Tec.'])}</td>
+                                    <td>{renderValue(fila['Tiempo Ocioso Tec.'])}</td>
+                                    <td>
+                                        {renderValue(
+                                            (parseFloat(fila['Tiempo Ocioso Tec.']) || 0) /
+                                            ((parseFloat(fila['Acum. Tiempo Trabajado Tec.']) || 0) + (parseFloat(fila['Tiempo Ocioso Tec.']) || 0) || 1)
+                                        )}
+                                    </td>
+                                    <td>
+                                        {renderValue(
+                                            ((parseFloat(fila['Tiempo Ocioso Tec.']) || 0) * 100) /
+                                            ((parseFloat(fila['Acum. Tiempo Trabajado Tec.']) || 0) + (parseFloat(fila['Tiempo Ocioso Tec.']) || 0) || 1)
+                                        )}%
+                                    </td>
 
-                                    <td>{renderValue(getValue('Cola'))}</td>
+                                    <td>{renderValue(fila['Cola'])}</td>
 
                                     {[...Array(numMaquinas)].map((_, i) => (
-                                        <td key={`estado-maquina-${i + 1}`}>{renderValue(getValue(`Máquina ${i + 1}`))}</td>
+                                        <td key={`estado-maquina-${i + 1}`}>
+                                            {renderValue(fila[`Máquina ${i + 1}`])}
+                                        </td>
                                     ))}
 
+                                    {/* ALUMNOS */}
                                     {sortedAllAlumnoIds.map(alumnoId => {
-                                        const { estado, maquina } = getAlumnoDisplayInfo(alumnoId);
-                                        
+                                        const estado = fila[`Estado ${alumnoId}`]; // Estado ya procesado
+                                        const maquina = getAlumnoMachineInRow(alumnoId, data[index]); // Máquina de la fila ORIGINAL
+
+                                        // Solo mostrar si hay un estado NO NULO O una máquina asignada
+                                        const isAlumnoActive = (estado !== null) || (maquina !== null);
+
+                                        if (!isAlumnoActive) {
+                                            return (
+                                                <React.Fragment key={`estado-maquina-alumno-${alumnoId}`}>
+                                                    <td>-</td>
+                                                    <td>-</td>
+                                                </React.Fragment>
+                                            );
+                                        }
                                         return (
                                             <React.Fragment key={`estado-maquina-alumno-${alumnoId}`}>
                                                 <td>{renderValue(estado)}</td>
