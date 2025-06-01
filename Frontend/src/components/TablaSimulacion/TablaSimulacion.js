@@ -45,6 +45,8 @@ function TablaSimulacion({ data }) {
 
                             <th colSpan="3">REGRESO TÉCNICO</th>
                             <th colSpan="4">DETALLE MANTENIMIENTO</th>
+
+                            {/* Cambié el colSpan a 3 ya que quitamos una columna */}
                             <th colSpan="4">ESTADÍSTICAS TÉCNICO</th>
 
                             <th rowSpan="2">COLA DE ALUMNOS</th>
@@ -81,10 +83,11 @@ function TablaSimulacion({ data }) {
                             <th>Fin Mant.</th>
                             <th>Máq. Mant.</th>
 
+                            {/* Reordené las columnas y quité "Promedio Tiempo Trabajado Tec." */}
+                            <th>Acum. Tiempo Trabajado Tec.</th>
                             <th>Tiempo Ocioso Tec.</th>
                             <th>Promedio Tiempo Ocioso Tec.</th>
-                            <th>Acum. Tiempo Trabajado Tec.</th>
-                            <th>Promedio Tiempo Trabajado Tec.</th>
+                            <th>Porcentaje de Tiempo Ocioso Tec.</th>
 
                             {[...Array(maxAlumnos)].map((_, i) => (
                                 <React.Fragment key={`alumno-subheader-${i + 1}`}>
@@ -94,98 +97,99 @@ function TablaSimulacion({ data }) {
                         </tr>
                     </thead>
                     <tbody>
-  {data.map((fila, index) => {
-    const getPropagatedValue = (key) => {
-      if (fila[key] !== undefined && fila[key] !== null && fila[key] !== "") {
-        return fila[key];
-      }
-      if (index > 0 && data[index - 1][key] !== undefined && data[index - 1][key] !== null) {
-        return data[index - 1][key];
-      }
-      return null;
-    };
+                        {data.map((fila, index) => {
+                            const getPropagatedValue = (key) => {
+                                if (fila[key] !== undefined && fila[key] !== null && fila[key] !== "") {
+                                    return fila[key];
+                                }
+                                if (index > 0 && data[index - 1][key] !== undefined && data[index - 1][key] !== null) {
+                                    return data[index - 1][key];
+                                }
+                                return null;
+                            };
 
-    const isLlegadaEvent = fila.Evento.startsWith("Llegada Alumno");
-    const rndLlegada = isLlegadaEvent ? (fila['RND Llegada'] !== undefined ? fila['RND Llegada'] : "-") : "-";
-    const tiempoLlegada = isLlegadaEvent ? (fila['Tiempo Llegada'] !== undefined ? fila['Tiempo Llegada'] : "-") : "-";
+                            const isLlegadaEvent = fila.Evento.startsWith("Llegada Alumno");
+                            const rndLlegada = isLlegadaEvent ? (fila['RND Llegada'] !== undefined ? fila['RND Llegada'] : "-") : "-";
+                            const tiempoLlegada = isLlegadaEvent ? (fila['Tiempo Llegada'] !== undefined ? fila['Tiempo Llegada'] : "-") : "-";
 
-    // Funciones para inscripción filtrando por evento y máquina
-    const getInscripcionRND = (machineId) => {
-      if ((fila.Evento.startsWith("Llegada Alumno") || fila.Evento.startsWith("Fin Inscripción")) && fila['Máquina'] === machineId) {
-        return fila['RND Inscripción'];
-      }
-      return null;
-    };
+                            // Funciones para inscripción filtrando por evento y máquina
+                            const getInscripcionRND = (machineId) => {
+                                if ((fila.Evento.startsWith("Llegada Alumno") || fila.Evento.startsWith("Fin Inscripción")) && fila['Máquina'] === machineId) {
+                                    return fila['RND Inscripción'];
+                                }
+                                return null;
+                            };
 
-    const getInscripcionTiempo = (machineId) => {
-      if ((fila.Evento.startsWith("Llegada Alumno") || fila.Evento.startsWith("Fin Inscripción")) && fila['Máquina'] === machineId) {
-        return fila['Tiempo Inscripción'];
-      }
-      return null;
-    };
+                            const getInscripcionTiempo = (machineId) => {
+                                if ((fila.Evento.startsWith("Llegada Alumno") || fila.Evento.startsWith("Fin Inscripción")) && fila['Máquina'] === machineId) {
+                                    return fila['Tiempo Inscripción'];
+                                }
+                                return null;
+                            };
 
-    // Calcular mínimo fin mantenimiento y máquina
-    let minFinMant = null;
-    let maquinaMant = null;
-    for (let j = 1; j <= numMaquinas; j++) {
-      const finMant = fila[`Fin Mantenimiento M${j}`];
-      if (finMant !== null && finMant !== undefined) {
-        if (minFinMant === null || finMant < minFinMant) {
-          minFinMant = finMant;
-          maquinaMant = j;
-        }
-      }
-    }
+                            // Calcular mínimo fin mantenimiento y máquina
+                            let minFinMant = null;
+                            let maquinaMant = null;
+                            for (let j = 1; j <= numMaquinas; j++) {
+                                const finMant = fila[`Fin Mantenimiento M${j}`];
+                                if (finMant !== null && finMant !== undefined) {
+                                    if (minFinMant === null || finMant < minFinMant) {
+                                        minFinMant = finMant;
+                                        maquinaMant = j;
+                                    }
+                                }
+                            }
 
-    return (
-      <tr key={`fila-${index}`}>
-        <td>{index + 1}</td>
-        <td>{fila.Evento}</td>
-        <td>{renderValue(fila.Reloj)}</td>
+                            return (
+                                <tr key={`fila-${index}`}>
+                                    <td>{index + 1}</td>
+                                    <td>{fila.Evento}</td>
+                                    <td>{renderValue(fila.Reloj)}</td>
 
-        <td>{renderValue(rndLlegada)}</td>
-        <td>{renderValue(tiempoLlegada)}</td>
-        <td>{renderValue(getPropagatedValue('Próxima Llegada'))}</td>
+                                    <td>{renderValue(rndLlegada)}</td>
+                                    <td>{renderValue(tiempoLlegada)}</td>
+                                    <td>{renderValue(getPropagatedValue('Próxima Llegada'))}</td>
 
-        {[...Array(numMaquinas)].map((_, i) => {
-          const machineId = i + 1;
-          return (
-            <React.Fragment key={`inscripcion-${machineId}`}>
-              <td>{renderValue(getInscripcionRND(machineId))}</td>
-              <td>{renderValue(getInscripcionTiempo(machineId))}</td>
-              <td>{renderValue(fila[`Fin Inscripción M${machineId}`])}</td>
-            </React.Fragment>
-          );
-        })}
+                                    {[...Array(numMaquinas)].map((_, i) => {
+                                        const machineId = i + 1;
+                                        return (
+                                            <React.Fragment key={`inscripcion-${machineId}`}>
+                                                <td>{renderValue(getInscripcionRND(machineId))}</td>
+                                                <td>{renderValue(getInscripcionTiempo(machineId))}</td>
+                                                <td>{renderValue(fila[`Fin Inscripción M${machineId}`])}</td>
+                                            </React.Fragment>
+                                        );
+                                    })}
 
-        <td>{renderValue(fila['RND Tiempo Vuelta'])}</td>
-        <td>{renderValue(fila['Tiempo Vuelta'])}</td>
-        <td>{renderValue(getPropagatedValue('Próximo Inicio Mantenimiento'))}</td>
+                                    <td>{renderValue(fila['RND Tiempo Vuelta'])}</td>
+                                    <td>{renderValue(fila['Tiempo Vuelta'])}</td>
+                                    <td>{renderValue(getPropagatedValue('Próximo Inicio Mantenimiento'))}</td>
 
-        <td>{renderValue(fila['RND Mantenimiento'])}</td>
-        <td>{renderValue(fila['Tiempo Mantenimiento'])}</td>
+                                    <td>{renderValue(fila['RND Mantenimiento'])}</td>
+                                    <td>{renderValue(fila['Tiempo Mantenimiento'])}</td>
 
-        <td>{renderValue(minFinMant)}</td>
-        <td>{renderValue(maquinaMant)}</td>
+                                    <td>{renderValue(minFinMant)}</td>
+                                    <td>{renderValue(maquinaMant)}</td>
 
-        <td>{renderValue(getPropagatedValue('Tiempo Ocioso Tec.'))}</td>
-        <td>{renderValue(getPropagatedValue('Promedio Tiempo Ocioso Tec.'))}</td>
-        <td>{renderValue(getPropagatedValue('Acum. Tiempo Trabajado Tec.'))}</td>
-        <td>{renderValue(getPropagatedValue('Promedio Tiempo Trabajado Tec.'))}</td>
+                                    <td>{renderValue(getPropagatedValue('Acum. Tiempo Trabajado Tec.'))}</td>
+                                    <td>{renderValue(getPropagatedValue('Tiempo Ocioso Tec.'))}</td>
+                                    <td>{renderValue((parseFloat(getPropagatedValue('Tiempo Ocioso Tec.')) || 0) / (parseFloat(getPropagatedValue('Acum. Tiempo Trabajado Tec.')) || 1))}</td>
+                                    <td>{renderValue((parseFloat(getPropagatedValue('Tiempo Ocioso Tec.')) || 0) * 100 / (parseFloat(getPropagatedValue('Acum. Tiempo Trabajado Tec.')) || 1))+ "%"}</td>
 
-        <td>{renderValue(getPropagatedValue('Cola'))}</td>
 
-        {[...Array(numMaquinas)].map((_, i) => (
-          <td key={`estado-maquina-${i + 1}`}>{renderValue(getPropagatedValue(`Máquina ${i + 1}`))}</td>
-        ))}
+                                    <td>{renderValue(getPropagatedValue('Cola'))}</td>
 
-        {[...Array(maxAlumnos)].map((_, i) => (
-          <td key={`estado-alumno-${i + 1}`}>{renderValue(getPropagatedValue(`Estado A${i + 1}`))}</td>
-        ))}
-      </tr>
-    );
-  })}
-</tbody>
+                                    {[...Array(numMaquinas)].map((_, i) => (
+                                        <td key={`estado-maquina-${i + 1}`}>{renderValue(getPropagatedValue(`Máquina ${i + 1}`))}</td>
+                                    ))}
+
+                                    {[...Array(maxAlumnos)].map((_, i) => (
+                                        <td key={`estado-alumno-${i + 1}`}>{renderValue(getPropagatedValue(`Estado A${i + 1}`))}</td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
                 </table>
             </div>
         </div>
