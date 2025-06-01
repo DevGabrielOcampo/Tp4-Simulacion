@@ -394,7 +394,7 @@ class Simulacion implements Serializable {
                         && !entry.getKey().equals("Máquina")
                         && !entry.getKey().equals("RND Mantenimiento")
                         && !entry.getKey().equals("Tiempo Mantenimiento")
-                        && !entry.getKey().equals("Fin Mantenimiento") // No copiar el global, se recalcula si aplica
+                        // ELIMINADO: && !entry.getKey().equals("Fin Mantenimiento") // Ahora se copiará
                         && !entry.getKey().equals("Máquina Mant.")
                         && !entry.getKey().equals("RND Tiempo Vuelta")
                         && !entry.getKey().equals("Tiempo Vuelta")
@@ -609,7 +609,7 @@ class Simulacion implements Serializable {
             // Y el técnico no está ya ocupado en otra máquina de mantenimiento
             if (proximaComputadoraMantenimiento < equipos.size() &&
                     equipo.get("id").equals(equipos.get(proximaComputadoraMantenimiento).get("id")) &&
-                    !isTechnicianBusyMaintaining()) { // Asegurarse de que el técnico no está ocupado
+                    !isTechnicianBusyMaintaining()) {
 
                 double[] mantResult = generarTiempoMantenimiento();
                 double rndMant = mantResult[0];
@@ -618,6 +618,9 @@ class Simulacion implements Serializable {
                 equipo.put("estado", EstadoEquipo.MANTENIMIENTO);
                 equipo.put("fin_mantenimiento", tiempoActual + tiempoMant);
                 equipo.put("duracion_mantenimiento_actual", tiempoMant);
+                equipo.put("rnd_mantenimiento", rndMant);
+                equipo.put("tiempo_mantenimiento", tiempoMant);
+
                 proximaComputadoraMantenimiento++;
                 technicianTookMachine = true;
 
@@ -649,6 +652,7 @@ class Simulacion implements Serializable {
             estado.put("Máquina", equipo.get("id"));
         }
     }
+
 
     private void procesarRegresoTecnico(Map<String, Object> estado) {
         estado.put("Evento", "Regreso Técnico");
