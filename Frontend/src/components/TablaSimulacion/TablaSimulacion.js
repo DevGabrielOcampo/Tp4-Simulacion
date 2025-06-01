@@ -105,19 +105,26 @@ function TablaSimulacion({ data }) {
       return null;
     };
 
-    const renderValue = (value) => {
-      if (value === null || value === undefined || value === "") {
-        return "-";
+    const isLlegadaEvent = fila.Evento.startsWith("Llegada Alumno");
+    const rndLlegada = isLlegadaEvent ? (fila['RND Llegada'] !== undefined ? fila['RND Llegada'] : "-") : "-";
+    const tiempoLlegada = isLlegadaEvent ? (fila['Tiempo Llegada'] !== undefined ? fila['Tiempo Llegada'] : "-") : "-";
+
+    // Funciones para inscripción filtrando por evento y máquina
+    const getInscripcionRND = (machineId) => {
+      if ((fila.Evento.startsWith("Llegada Alumno") || fila.Evento.startsWith("Fin Inscripción")) && fila['Máquina'] === machineId) {
+        return fila['RND Inscripción'];
       }
-      if (typeof value === 'number') {
-        return value.toFixed(2);
-      }
-      return value;
+      return null;
     };
 
-    const numMaquinas = 5;
+    const getInscripcionTiempo = (machineId) => {
+      if ((fila.Evento.startsWith("Llegada Alumno") || fila.Evento.startsWith("Fin Inscripción")) && fila['Máquina'] === machineId) {
+        return fila['Tiempo Inscripción'];
+      }
+      return null;
+    };
 
-    // Calcular el fin de mantenimiento mínimo y la máquina correspondiente para esta fila
+    // Calcular mínimo fin mantenimiento y máquina
     let minFinMant = null;
     let maquinaMant = null;
     for (let j = 1; j <= numMaquinas; j++) {
@@ -136,16 +143,16 @@ function TablaSimulacion({ data }) {
         <td>{fila.Evento}</td>
         <td>{renderValue(fila.Reloj)}</td>
 
-        <td>{renderValue(fila['RND Llegada'])}</td>
-        <td>{renderValue(fila['Tiempo Llegada'])}</td>
+        <td>{renderValue(rndLlegada)}</td>
+        <td>{renderValue(tiempoLlegada)}</td>
         <td>{renderValue(getPropagatedValue('Próxima Llegada'))}</td>
 
         {[...Array(numMaquinas)].map((_, i) => {
           const machineId = i + 1;
           return (
             <React.Fragment key={`inscripcion-${machineId}`}>
-              <td>{renderValue(fila['RND Inscripción'])}</td>
-              <td>{renderValue(fila['Tiempo Inscripción'])}</td>
+              <td>{renderValue(getInscripcionRND(machineId))}</td>
+              <td>{renderValue(getInscripcionTiempo(machineId))}</td>
               <td>{renderValue(fila[`Fin Inscripción M${machineId}`])}</td>
             </React.Fragment>
           );
@@ -158,7 +165,6 @@ function TablaSimulacion({ data }) {
         <td>{renderValue(fila['RND Mantenimiento'])}</td>
         <td>{renderValue(fila['Tiempo Mantenimiento'])}</td>
 
-        {/* Ahora con las variables calculadas */}
         <td>{renderValue(minFinMant)}</td>
         <td>{renderValue(maquinaMant)}</td>
 
@@ -180,7 +186,6 @@ function TablaSimulacion({ data }) {
     );
   })}
 </tbody>
-
                 </table>
             </div>
         </div>
