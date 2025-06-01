@@ -2,12 +2,14 @@
     text-align: left;
     margin: 20px auto;
     width: 100%;
+    position: relative;
 }
 
 .tabla-wrapper {
-    overflow-x: auto; /* Activa scroll horizontal */
-    max-width: 100%;
-    white-space: nowrap;
+    overflow: auto;
+    max-height: 70vh;
+    position: relative;
+    border: 1px solid #ddd;
 }
 
 .tabla-simulacion {
@@ -15,21 +17,65 @@
     border-collapse: collapse;
 }
 
+/* Encabezado principal fijo */
+.tabla-simulacion thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background-color: #007BFF;
+    color: white;
+}
+
+/* Encabezado secundario fijo (debajo del principal) */
+.tabla-simulacion thead tr:nth-child(2) th {
+    position: sticky;
+    top: 40px; /* Ajusta según la altura de tu primera fila de encabezados */
+    z-index: 999;
+    background-color: #007BFF;
+    color: white;
+    border-top: 1px solid #fff; /* Separación visual */
+}
+
+/* Estilos base para celdas */
 .tabla-simulacion th, .tabla-simulacion td {
     padding: 8px;
     border: 1px solid #ddd;
     text-align: center;
+    background-color: inherit; /* Cambiado de white a inherit */
 }
 
-.tabla-simulacion th {
-    background-color: #007BFF;
-    color: white;
-    font-weight: bold;
-}
-
+/* Resto de tus estilos se mantienen igual */
 .tabla-simulacion .grupo {
     background-color: #333;
     color: white;
     font-size: 16px;
     text-align: center;
+}
+
+/* Estilos para hover y selected - específicos para las filas del tbody */
+.tabla-simulacion tbody tr:hover,
+.tabla-simulacion tbody tr:hover td {
+    background-color: #d3e5ff !important;
+    cursor: pointer;
+}
+
+.tabla-simulacion tbody tr.selected,
+.tabla-simulacion tbody tr.selected td {
+    background-color: #a0c4ff !important;
+}
+
+.boton-copiar {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-bottom: 10px;
+}
+
+.boton-copiar:hover {
+    background-color: #45a049;
 }

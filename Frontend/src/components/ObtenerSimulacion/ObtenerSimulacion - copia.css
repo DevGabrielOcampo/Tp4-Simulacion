@@ -1,0 +1,119 @@
+.form{
+    display: grid;
+    place-content: center;
+}
+
+.cant_minutos {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.opciones-grp{
+    display: flex;
+    justify-content: center;
+    gap: 100px;
+    margin-top: 20px;
+}
+
+.intervalos{
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.opcionales{
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+
+.errores{
+    display:inline;
+    margin: 10px;
+    color: red;
+}
+
+.caja-inputs{
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ced4da;
+    background-color: #fff;
+}
+
+.custom-select { 
+    margin-top: 10px;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ced4da;
+    background-color: #fff;
+}
+
+.subtitulo{
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 20px;
+    font-weight:600;
+    margin: 20px 0 20px 0;
+}
+
+.boton-grp{
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.boton{
+    width: 100%;
+    height: 40px;
+    background-color: #2caffe;
+    border-radius: 10px;
+    border: none;
+}
+
+.boton:hover{
+    cursor: pointer;
+    background-color: #0159b7;
+}
+
+.boton-limpiar{
+    width: 100%;
+    height: 40px;
+    background-color: #96B583;
+    border-radius: 10px;
+    border: none;
+}
+
+.boton-limpiar:hover{
+    cursor: pointer;
+    background-color: #6a7f5d;
+}
+
+@media (max-width: 560px) {
+    .intervalos {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      justify-content: space-around;
+    }
+  
+    .opciones-grp {
+      align-items: center;
+      text-align: center;
+      flex-direction: column;
+      gap: 50px;
+    }
+  
+    .custom-select {
+      width: 100%;
+    }
+  }

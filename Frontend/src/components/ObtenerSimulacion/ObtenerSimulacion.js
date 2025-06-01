@@ -290,61 +290,58 @@ function ObtenerSimulacion({ setDatosGenerados }) {
 
                     <h1>Simulación</h1>
                     {/* X: Cantidad de minutos a simular */}
-                    <Row className='cant_minutos'>
-                        <Form.Label className='subtitulo'>Cantidad de minutos a simular</Form.Label>
-                        <Form.Group as={Col} md="4" controlId="validationFormikNumber">
-                            <Form.Control
-                                className='caja-inputs'
-                                type="number"
-                                name="minutosSimulacion"
-                                value={values.minutosSimulacion}
-                                onChange={handleChange}
-                                isInvalid={touched.minutosSimulacion && !!errors.minutosSimulacion}
-                                placeholder="Ingrese los minutos"
-                            />
-                            <Form.Control.Feedback type="invalid" className='errores'>
-                                {errors.minutosSimulacion}
-                            </Form.Control.Feedback>
-                        </Form.Group>
-                    </Row>
+                    <Row className='seccion-simulacion'>
+    {/* Cantidad de minutos a simular */}
+    <Col md={4}>
+        <Form.Label className='subtitulo'>Cantidad de minutos a simular</Form.Label>
+        <Form.Control
+            className='caja-inputs'
+            type="number"
+            name="minutosSimulacion"
+            placeholder="Ingrese los minutos"
+            value={values.minutosSimulacion}
+            onChange={handleChange}
+            isInvalid={touched.minutosSimulacion && !!errors.minutosSimulacion}
+        />
+        <Form.Control.Feedback type="invalid" className='errores'>
+            {errors.minutosSimulacion}
+        </Form.Control.Feedback>
+    </Col>
 
-                    {/* j: Mostrar desde minuto */}
-                    <Row className='cant_minutos'>
-                        <Form.Label className='subtitulo'>Mostrar desde minuto</Form.Label>
-                        <Form.Group as={Col} md="4" controlId="validationFormikNumber">
-                            <Form.Control
-                                className='caja-inputs'
-                                type="number"
-                                name="minutoDesde"
-                                value={values.minutoDesde}
-                                onChange={handleChange}
-                                isInvalid={touched.minutoDesde && !!errors.minutoDesde}
-                                placeholder="Ingrese los minutos"
-                            />
-                            <Form.Control.Feedback type="invalid" className='errores'>
-                                {errors.minutoDesde}
-                            </Form.Control.Feedback>
-                        </Form.Group>
-                    </Row>
+    {/* Mostrar desde minuto */}
+    <Col md={4}>
+        <Form.Label className='subtitulo'>Mostrar desde minuto</Form.Label>
+        <Form.Control
+            className='caja-inputs'
+            type="number"
+            name="minutoDesde"
+            placeholder="Ingrese los minutos"
+            value={values.minutoDesde}
+            onChange={handleChange}
+            isInvalid={touched.minutoDesde && !!errors.minutoDesde}
+        />
+        <Form.Control.Feedback type="invalid" className='errores'>
+            {errors.minutoDesde}
+        </Form.Control.Feedback>
+    </Col>
 
-                    {/* i: Cantidad de iteraciones */}
-                    <Row className='cant_minutos'>
-                        <Form.Label className='subtitulo'>Cantidad de iteraciones</Form.Label>
-                        <Form.Group as={Col} md="4" controlId="validationFormikNumber">
-                            <Form.Control
-                                className='caja-inputs'
-                                type="number"
-                                name="iteraciones"
-                                value={values.iteraciones}
-                                onChange={handleChange}
-                                isInvalid={touched.iteraciones && !!errors.iteraciones}
-                                placeholder="Ingrese las iteraciones"
-                            />
-                            <Form.Control.Feedback type="invalid" className='errores'>
-                                {errors.iteraciones}
-                            </Form.Control.Feedback>
-                        </Form.Group>
-                    </Row>
+    {/* Cantidad de iteraciones */}
+    <Col md={4}>
+        <Form.Label className='subtitulo'>Cantidad de iteraciones</Form.Label>
+        <Form.Control
+            className='caja-inputs'
+            type="number"
+            name="iteraciones"
+            placeholder="Ingrese las iteraciones"
+            value={values.iteraciones}
+            onChange={handleChange}
+            isInvalid={touched.iteraciones && !!errors.iteraciones}
+        />
+        <Form.Control.Feedback type="invalid" className='errores'>
+            {errors.iteraciones}
+        </Form.Control.Feedback>
+    </Col>
+</Row>
 
                     {/* Botones */}
                     <div className='boton-grp'>
