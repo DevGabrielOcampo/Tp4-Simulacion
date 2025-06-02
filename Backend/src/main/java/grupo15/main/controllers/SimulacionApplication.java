@@ -31,7 +31,7 @@ public class SimulacionApplication {
             @RequestParam("minutoDesde") Float minutoDesde,
             @RequestParam("iteracionesMostrar") Float iteracionesMostrar) {
 
-        // Validaciones de parámetros (sin cambios)
+        // Validaciones de parámetros
         if (minutosSimulacion <= 0) {
             throw new IllegalArgumentException("Los minutos de simulación deben ser mayores a 0.");
         }
@@ -61,7 +61,7 @@ public class SimulacionApplication {
         }
 
         Simulacion simulacion = new Simulacion(
-                5, // Fixed number of machines
+                5,
                 minInscripcion,
                 maxInscripcion,
                 mediaLlegada,
@@ -250,9 +250,6 @@ class Simulacion implements Serializable {
             estadoActual.put("Estado " + entry.getKey(), entry.getValue().getValue());
         }
 
-        // Determinar el máximo alumno que ha existido para la visualización si es necesario
-        // En este caso, ya no necesitamos "max_alumnos" si solo mostramos los activos
-        // Si necesitas saber el alumno más alto que ha pasado, podrías mantener un contador aparte.
     }
 
     private Object[] obtenerProximoEvento() {
@@ -400,6 +397,7 @@ class Simulacion implements Serializable {
             estado.put("Iteracion", iteracion);
             estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
 
+            // Le carga los datos del estado anterior
             if (estadoAnterior != null) {
                 for (Map.Entry<String, Object> entry : estadoAnterior.entrySet()) {
                     // Copiamos todas las claves del estado anterior, excepto las relacionadas con alumnos específicos
@@ -481,6 +479,7 @@ class Simulacion implements Serializable {
                 resultadosFiltrados.add(estado);
                 iteracionesMostradasCount++;
             }
+            // Se guarda el estado actual, el cual pasara a ser el anterior en la proxima iteracion para poder crear el estado actual de la proxima iteracion
             estadoAnterior = estado;
 
         }
@@ -494,7 +493,6 @@ class Simulacion implements Serializable {
         estado.put("RND Llegada", Math.round(rndLlegada * 100.0) / 100.0);
         estado.put("Tiempo Llegada", Math.round(tiempoLlegada * 100.0) / 100.0);
 
-        // --- Modificación aquí: Verificar si la cola es de 5 o más ---
         if (cola >= 5) {
             actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA); // El alumno se va
             estado.put("Máquina", null); // No ocupa máquina
