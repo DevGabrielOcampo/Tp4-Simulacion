@@ -137,6 +137,10 @@ class Simulacion implements Serializable {
     private double tiempoTrabajadoTecnicoAcumulado;
     private int cantidadMantenimientosCompletados;
 
+    // Contador para el reseteo de HashMaps
+    private int iteracionesDesdeUltimoReset;
+    private static final int RESET_INTERVAL = 500; // Número de iteraciones para el reseteo
+
     public Simulacion(int equiposCount, Float infInscripcion, Float supInscripcion,
                       Float mediaLlegada, Float minMantenimiento, Float maxMantenimiento,
                       Float baseRegresoTecnico, Float rangoRegresoTecnico) {
@@ -170,6 +174,8 @@ class Simulacion implements Serializable {
         this.tiempoOciosoTecnicoAcumulado = 0.0;
         this.tiempoTrabajadoTecnicoAcumulado = 0.0;
         this.cantidadMantenimientosCompletados = 0;
+
+        this.iteracionesDesdeUltimoReset = 0; // Inicializar el contador
     }
 
     private double[] generarTiempoLlegada() {
@@ -217,12 +223,10 @@ class Simulacion implements Serializable {
         return false;
     }
 
-
     private void actualizarEstadoAlumno(String idAlumno, EstadoAlumno estado) {
-
         if (estado == EstadoAlumno.ATENCION_FINALIZADA) {
             estadoAlumnos.remove(idAlumno);
-            alumnosEnCola.remove(idAlumno);
+            alumnosEnCola.remove(idAlumno); // Asegurarse de quitarlo también de la cola
         } else {
             if (!estadoAlumnos.containsKey(idAlumno) || !estadoAlumnos.get(idAlumno).equals(estado)) {
                 estadoAlumnos.put(idAlumno, estado);
@@ -236,29 +240,20 @@ class Simulacion implements Serializable {
                 }
             }
         }
-
     }
-
-
 
     private void agregarEstadosAlumnos(Map<String, Object> estadoActual) {
         estadoActual.put("Cola", cola);
 
-        int currentMaxAlumnos = 0;
-        for (int i = 1; i <= contadorAlumnos; i++) {
-            String alumnoId = "A" + i;
-            if (estadoAlumnos.containsKey(alumnoId)) {
-                EstadoAlumno est = estadoAlumnos.get(alumnoId);
-                estadoActual.put("Estado " + alumnoId, est.getValue());
-                currentMaxAlumnos = i;
-            } else {
-                // No hacer nada: NO agregar la clave al mapa
-            }
+        // Solo agregamos los estados de los alumnos que están activos en el HashMap
+        for (Map.Entry<String, EstadoAlumno> entry : estadoAlumnos.entrySet()) {
+            estadoActual.put("Estado " + entry.getKey(), entry.getValue().getValue());
         }
-        estadoActual.put("max_alumnos", currentMaxAlumnos);
+
+        // Determinar el máximo alumno que ha existido para la visualización si es necesario
+        // En este caso, ya no necesitamos "max_alumnos" si solo mostramos los activos
+        // Si necesitas saber el alumno más alto que ha pasado, podrías mantener un contador aparte.
     }
-
-
 
     private Object[] obtenerProximoEvento() {
         List<Object[]> eventos = new ArrayList<>();
@@ -357,11 +352,27 @@ class Simulacion implements Serializable {
         estadoAnterior = estadoInicial;
 
         Integer iteracion = 0;
-        while (tiempoActual < tiempoTotal && iteracion < 100000) {
+        while (tiempoActual < tiempoTotal && iteracion < 100000) { // Aumentar el límite de iteraciones si es necesario
             iteracion++;
-            System.out.println(iteracion);
+            iteracionesDesdeUltimoReset++;
+
             if (iteracionesMostradasCount >= iteracionesMostrar && tiempoActual >= minutoDesde) {
                 break;
+            }
+
+            // Lógica de reseteo cada 500 iteraciones
+            if (iteracionesDesdeUltimoReset % RESET_INTERVAL == 0) {
+                // Filtramos estadoAlumnos para mantener solo los alumnos que no han finalizado su atención.
+                // Los alumnos en cola o siendo atendidos son los únicos relevantes para el futuro de la simulación.
+                estadoAlumnos.entrySet().removeIf(entry -> entry.getValue() == EstadoAlumno.ATENCION_FINALIZADA);
+
+                // Reconstruimos alumnosEnCola basándonos en los alumnos que aún están en estadoAlumnos y en cola
+                alumnosEnCola = estadoAlumnos.entrySet().stream()
+                        .filter(entry -> entry.getValue() == EstadoAlumno.EN_COLA)
+                        .map(Map.Entry::getKey)
+                        .collect(Collectors.toCollection(ArrayList::new));
+
+                iteracionesDesdeUltimoReset = 0; // Reiniciar el contador después del reseteo
             }
 
             Object[] evento = obtenerProximoEvento();
@@ -391,8 +402,8 @@ class Simulacion implements Serializable {
 
             if (estadoAnterior != null) {
                 for (Map.Entry<String, Object> entry : estadoAnterior.entrySet()) {
-                    // **CAMBIO IMPORTANTE AQUÍ**
-                    // Excluimos las claves de estado de alumnos para que solo se agreguen los alumnos actuales
+                    // Copiamos todas las claves del estado anterior, excepto las relacionadas con alumnos específicos
+                    // que serán agregadas nuevamente por agregarEstadosAlumnos()
                     if (!entry.getKey().equals("Evento") && !entry.getKey().equals("Reloj")
                             && !entry.getKey().equals("Iteracion") && !entry.getKey().equals("RND Llegada")
                             && !entry.getKey().equals("Tiempo Llegada") && !entry.getKey().equals("RND Inscripción")
@@ -401,7 +412,7 @@ class Simulacion implements Serializable {
                             && !entry.getKey().equals("Máquina Mant.") && !entry.getKey().equals("RND Tiempo Vuelta")
                             && !entry.getKey().equals("Tiempo Vuelta") && !entry.getKey().equals("Acum. Tiempo Trabajado Tec.")
                             && !entry.getKey().equals("Tiempo Ocioso Tec.") && !entry.getKey().equals("Promedio Tiempo Ocioso Tec.")
-                            && !entry.getKey().startsWith("Estado A") // <-- ¡Esta es la línea clave agregada!
+                            && !entry.getKey().startsWith("Estado A")
                     ) {
                         estado.put(entry.getKey(), entry.getValue());
                     }
@@ -462,7 +473,11 @@ class Simulacion implements Serializable {
 
             agregarEstadosAlumnos(estado); // Esto agregará solo los alumnos *actualmente* en estadoAlumnos
 
-            if (tiempoActual >= minutoDesde && iteracionesMostradasCount < iteracionesMostrar) {
+            if (tiempoActual >= minutoDesde && iteracionesMostradasCount < iteracionesMostrar && iteracion != 100000) {
+                resultadosFiltrados.add(estado);
+                iteracionesMostradasCount++;
+            }
+            if(iteracion == 100000){
                 resultadosFiltrados.add(estado);
                 iteracionesMostradasCount++;
             }
@@ -481,14 +496,12 @@ class Simulacion implements Serializable {
 
         // --- Modificación aquí: Verificar si la cola es de 5 o más ---
         if (cola >= 5) {
-            actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA);
+            actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA); // El alumno se va
             estado.put("Máquina", null); // No ocupa máquina
             estado.put("RND Inscripción", null);
             estado.put("Tiempo Inscripción", null);
             estado.put("Fin Inscripción", null);
-            // No incrementamos la cola, el alumno se va
-            // También puedes agregar una columna específica para alumnos que se van si lo necesitas
-            estado.put("Alumno Atendido", "No"); // Ejemplo de columna adicional
+            estado.put("Alumno Atendido", "No"); // Indicador para el resultado
         } else {
             Map<String, Object> equipoLibre = obtenerEquipoLibre();
             if (equipoLibre != null) {
@@ -568,7 +581,7 @@ class Simulacion implements Serializable {
         }
 
         if (!alumnosEnCola.isEmpty() && equipo.get("estado") == EstadoEquipo.LIBRE) {
-            String siguienteAlumno = alumnosEnCola.get(0);
+            String siguienteAlumno = alumnosEnCola.get(0); // Tomamos el primer alumno en cola
             double[] insResult = generarTiempoInscripcion();
             double rndIns = insResult[0];
             double tiempoIns = insResult[1];
@@ -590,7 +603,7 @@ class Simulacion implements Serializable {
 
     private void procesarFinInscripcion(Map<String, Object> equipo, Map<String, Object> estado) {
         String alumnoFinalizado = (String) equipo.get("alumno_actual");
-        actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.ATENCION_FINALIZADA);
+        actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.ATENCION_FINALIZADA); // Marcamos como finalizado para futura limpieza
 
         equipo.put("estado", EstadoEquipo.LIBRE);
         equipo.put("fin_inscripcion", null);
