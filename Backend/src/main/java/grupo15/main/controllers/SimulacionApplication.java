@@ -352,10 +352,7 @@ class Simulacion implements Serializable {
         while (tiempoActual < tiempoTotal && iteracion < 100000) { // Aumentar el límite de iteraciones si es necesario
             iteracion++;
             iteracionesDesdeUltimoReset++;
-
-            if (iteracionesMostradasCount >= iteracionesMostrar && tiempoActual >= minutoDesde) {
-                break;
-            }
+            
 
             // Lógica de reseteo cada 500 iteraciones
             if (iteracionesDesdeUltimoReset % RESET_INTERVAL == 0) {
@@ -475,15 +472,12 @@ class Simulacion implements Serializable {
                 resultadosFiltrados.add(estado);
                 iteracionesMostradasCount++;
             }
-            if(iteracion == 100000){
-                resultadosFiltrados.add(estado);
-                iteracionesMostradasCount++;
-            }
             // Se guarda el estado actual, el cual pasara a ser el anterior en la proxima iteracion para poder crear el estado actual de la proxima iteracion
             estadoAnterior = estado;
 
         }
 
+        resultadosFiltrados.add(estadoAnterior);
         return resultadosFiltrados;
     }
 
