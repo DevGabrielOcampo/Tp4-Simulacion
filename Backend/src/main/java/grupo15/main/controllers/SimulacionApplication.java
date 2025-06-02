@@ -352,7 +352,7 @@ class Simulacion implements Serializable {
         while (tiempoActual < tiempoTotal && iteracion < 100000) { // Aumentar el límite de iteraciones si es necesario
             iteracion++;
             iteracionesDesdeUltimoReset++;
-            
+
 
             // Lógica de reseteo cada 500 iteraciones
             if (iteracionesDesdeUltimoReset % RESET_INTERVAL == 0) {
