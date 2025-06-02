@@ -103,8 +103,8 @@ function TablaSimulacion({ data }) {
             // Si el evento actual es "Fin Inscripción" y es para este alumno,
             // o si el estado en la fila original es 'FS', entonces el alumno YA NO ESTÁ.
             else if ((filaOriginal.Evento && filaOriginal.Evento.includes("Fin Inscripción") &&
-                      filaOriginal[`Alumno M${filaOriginal['Máquina']}`] === alumnoId) ||
-                     estadoEnFilaOriginal === 'FS') {
+                filaOriginal[`Alumno M${filaOriginal['Máquina']}`] === alumnoId) ||
+                estadoEnFilaOriginal === 'FS') {
                 currentRowState[estadoKey] = null; // Fuerza a null (para que se muestre '-')
             }
             // Si no está en la fila original, y NO está asignado a una máquina en la fila original,
@@ -218,18 +218,33 @@ function TablaSimulacion({ data }) {
                                             <React.Fragment key={`inscripcion-${machineId}`}>
                                                 <td>{renderValue(getInscripcionRND(machineId))}</td>
                                                 <td>{renderValue(getInscripcionTiempo(machineId))}</td>
-                                                <td>{renderValue(fila[`Fin Inscripción M${machineId}`])}</td>
+                                                <td>
+                                                    {fila[`Fin Inscripción M${machineId}`] <= fila.Reloj
+                                                        ? '-'
+                                                        : renderValue(fila[`Fin Inscripción M${machineId}`])}
+                                                </td>
+
                                             </React.Fragment>
                                         );
                                     })}
 
                                     <td>{renderValue(data[index]['RND Tiempo Vuelta'])}</td>
                                     <td>{renderValue(data[index]['Tiempo Vuelta'])}</td>
-                                    <td>{renderValue(fila['Próximo Inicio Mantenimiento'])}</td>
+                                    <td>
+                                        {fila['Próximo Inicio Mantenimiento'] <= fila.Reloj
+                                            ? '-'
+                                            : renderValue(fila['Próximo Inicio Mantenimiento'])}
+                                    </td>
+
 
                                     <td>{renderValue(data[index]['RND Mantenimiento'])}</td>
                                     <td>{renderValue(data[index]['Tiempo Mantenimiento'])}</td>
-                                    <td>{renderValue(fila['Fin Mantenimiento'])}</td>
+                                    
+                                    <td>
+                                        {fila['Fin Mantenimiento'] <= fila.Reloj
+                                            ? '-'
+                                            : renderValue(fila['Fin Mantenimiento'])}
+                                    </td>
                                     <td>{renderIntValue(fila['Máquina Mant.'])}</td>
 
                                     <td>{renderValue(fila['Acum. Tiempo Trabajado Tec.'])}</td>

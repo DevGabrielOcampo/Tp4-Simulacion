@@ -3,79 +3,101 @@
     margin: 20px auto;
     width: 100%;
     position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .tabla-wrapper {
     overflow: auto;
     max-height: 70vh;
     position: relative;
-    border: 1px solid #ddd;
+    border: 2px dashed #ccc;
+    border-radius: 12px;
+    background-color: #f9f9f9;
 }
 
 .tabla-simulacion {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 15px;
 }
 
-/* Encabezado principal fijo */
 .tabla-simulacion thead tr:first-child th {
     position: sticky;
     top: 0;
     z-index: 1000;
-    background-color: #007BFF;
+    background-color: #6c5ce7;
     color: white;
+    font-weight: 600;
+    padding: 12px 8px;
+    border: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* Encabezado secundario fijo (debajo del principal) */
 .tabla-simulacion thead tr:nth-child(2) th {
     position: sticky;
-    top: 40px; /* Ajusta según la altura de tu primera fila de encabezados */
+    top: 48px;
     z-index: 999;
-    background-color: #007BFF;
+    background-color: #a29bfe;
     color: white;
-    border-top: 1px solid #fff; /* Separación visual */
+    border-top: 1px solid rgba(255,255,255,0.3);
+    font-weight: 500;
 }
 
-/* Estilos base para celdas */
 .tabla-simulacion th, .tabla-simulacion td {
-    padding: 8px;
-    border: 1px solid #ddd;
+    padding: 10px 8px;
+    border: 1px solid #e0e0e0;
     text-align: center;
-    background-color: inherit; /* Cambiado de white a inherit */
+    background-color: inherit;
+    transition: all 0.2s ease;
 }
 
-/* Resto de tus estilos se mantienen igual */
 .tabla-simulacion .grupo {
-    background-color: #333;
+    background-color: #636e72;
     color: white;
-    font-size: 16px;
+    font-size: 15px;
     text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.5px;
 }
 
-/* Estilos para hover y selected - específicos para las filas del tbody */
-.tabla-simulacion tbody tr:hover,
-.tabla-simulacion tbody tr:hover td {
-    background-color: #d3e5ff !important;
-    cursor: pointer;
+.tabla-simulacion tbody tr:hover {
+    background-color: #f0f4ff !important;
+    transform: scale(1.002);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-.tabla-simulacion tbody tr.selected,
-.tabla-simulacion tbody tr.selected td {
-    background-color: #a0c4ff !important;
+.tabla-simulacion tbody tr.selected {
+    background-color: #d6d4ff !important;
+    font-weight: 500;
 }
 
 .boton-copiar {
-    background-color: #4CAF50;
+    background-color: #00b894;
     color: white;
     border: none;
-    padding: 10px 18px;
-    font-size: 16px;
-    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 15px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-bottom: 10px;
+    transition: all 0.3s ease;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    font-family: 'Segoe UI', sans-serif;
 }
 
 .boton-copiar:hover {
-    background-color: #45a049;
+    background-color: #00a884;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.15);
+}
+
+.tabla-wrapper::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.tabla-wrapper::-webkit-scrollbar-thumb {
+    background-color: #b2bec3;
+    border-radius: 10px;
 }

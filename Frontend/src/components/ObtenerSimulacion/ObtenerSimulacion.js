@@ -12,7 +12,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
         // Validaciones para "Cantidad de minutos a simular"
         minutosSimulacion: Yup
             .number()
-            .required("Se necesita ingresar los minutos")
+            .required("Se necesita ingresar 1los minutos")
             .positive("Número positivo")
             .moreThan(0, "El número debe ser mayor a 0"),
 
