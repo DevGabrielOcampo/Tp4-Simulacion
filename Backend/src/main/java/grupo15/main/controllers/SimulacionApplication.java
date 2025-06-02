@@ -3,9 +3,18 @@ package grupo15.main.controllers;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.io.Serializable;
+import java.io.OutputStreamWriter;
+import java.io.IOException;
 import java.util.stream.Collectors;
 
 @SpringBootApplication
@@ -14,12 +23,14 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "http://localhost:3000")
 public class SimulacionApplication {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public static void main(String[] args) {
         SpringApplication.run(SimulacionApplication.class, args);
     }
 
-    @GetMapping("/run-parametros")
-    public List<Map<String, Object>> runSimulationWithParameters(
+    @GetMapping(value = "/run-parametros", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<StreamingResponseBody> runSimulationWithParameters(
             @RequestParam("minInscripcion") Float minInscripcion,
             @RequestParam("maxInscripcion") Float maxInscripcion,
             @RequestParam("mediaLlegada") Float mediaLlegada,
@@ -31,7 +42,7 @@ public class SimulacionApplication {
             @RequestParam("minutoDesde") Float minutoDesde,
             @RequestParam("iteracionesMostrar") Float iteracionesMostrar) {
 
-        // Validaciones de parámetros
+// Validaciones de parámetros
         if (minutosSimulacion <= 0) {
             throw new IllegalArgumentException("Los minutos de simulación deben ser mayores a 0.");
         }
@@ -71,84 +82,72 @@ public class SimulacionApplication {
                 rangoRegresoTecnico
         );
 
-        List<Map<String, Object>> resultadosFiltrados = simulacion.simular(
-                minutosSimulacion.doubleValue(),
-                minutoDesde.doubleValue(),
-                iteracionesMostrar.intValue()
-        );
+        StreamingResponseBody stream = output -> {
+            try (OutputStreamWriter writer = new OutputStreamWriter(output)) {
+                writer.write("[\n");
 
-        return resultadosFiltrados;
-    }
-}
+                AtomicInteger iteracionesMostradas = new AtomicInteger(0);
 
-enum EstadoEquipo implements Serializable {
-    LIBRE("Libre"),
-    OCUPADO("Ocupado"),
-    MANTENIMIENTO("Mantenimiento");
+                simulacion.simularStream(
+                        minutosSimulacion.doubleValue(),
+                        minutoDesde.doubleValue(),
+                        iteracionesMostrar.intValue(),
+                        estado -> {
+                            try {
+                                if (iteracionesMostradas.get() > 0) {
+                                    writer.write(",\n");
+                                }
+                                writer.write(objectMapper.writeValueAsString(estado));
+                                iteracionesMostradas.incrementAndGet();
+                            } catch (IOException e) {
+                                throw new RuntimeException("Error al escribir JSON", e);
+                            }
+                        }
+                );
 
-    private final String value;
+                writer.write("\n]");
+            }
+        };
 
-    EstadoEquipo(String value) {
-        this.value = value;
-    }
-
-    public String getValue() {
-        return value;
-    }
-}
-
-enum EstadoAlumno implements Serializable {
-    SIENDO_ATENDIDO("SA"),
-    EN_COLA("EC"),
-    ATENCION_FINALIZADA("AF");
-
-    private final String value;
-
-    EstadoAlumno(String value) {
-        this.value = value;
-    }
-
-    public String getValue() {
-        return value;
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(stream);
     }
 }
 
 class Simulacion implements Serializable {
-    private List<Map<String, Object>> equipos;
-    private float infInscripcion;
-    private float supInscripcion;
-    private double mediaLlegada;
-    private float minMantenimiento;
-    private float maxMantenimiento;
-    private float baseRegresoTecnico;
-    private float rangoRegresoTecnico;
+    private static final int RESET_INTERVAL = 500;
+    private final List<Map<String, Object>> equipos;
+    private final float infInscripcion;
+    private final float supInscripcion;
+    private final double mediaLlegada;
+    private final float minMantenimiento;
+    private final float maxMantenimiento;
+    private final float baseRegresoTecnico;
+    private final float rangoRegresoTecnico;
 
     private int cola;
     private double tiempoActual;
     private int contadorAlumnos;
-    private Map<String, EstadoAlumno> estadoAlumnos;
-    private List<String> alumnosEnCola;
+    private final Map<String, String> estadoAlumnos;
+    private final List<String> alumnosEnCola;
     private Double proximoRegresoTecnico;
     private int proximaComputadoraMantenimiento;
     private double proximaLlegada;
 
-    // Estadísticas del técnico
     private double tiempoOciosoTecnicoAcumulado;
     private double tiempoTrabajadoTecnicoAcumulado;
     private int cantidadMantenimientosCompletados;
-
-    // Contador para el reseteo de HashMaps
     private int iteracionesDesdeUltimoReset;
-    private static final int RESET_INTERVAL = 500; // Número de iteraciones para el reseteo
 
-    public Simulacion(int equiposCount, Float infInscripcion, Float supInscripcion,
-                      Float mediaLlegada, Float minMantenimiento, Float maxMantenimiento,
-                      Float baseRegresoTecnico, Float rangoRegresoTecnico) {
+    public Simulacion(int equiposCount, float infInscripcion, float supInscripcion,
+                      double mediaLlegada, float minMantenimiento, float maxMantenimiento,
+                      float baseRegresoTecnico, float rangoRegresoTecnico) {
         this.equipos = new ArrayList<>();
         for (int i = 0; i < equiposCount; i++) {
             Map<String, Object> equipo = new HashMap<>();
             equipo.put("id", i + 1);
-            equipo.put("estado", EstadoEquipo.LIBRE);
+            equipo.put("estado", "Libre");
             equipo.put("fin_inscripcion", null);
             equipo.put("fin_mantenimiento", null);
             equipo.put("alumno_actual", null);
@@ -165,91 +164,366 @@ class Simulacion implements Serializable {
         this.cola = 0;
         this.tiempoActual = 0;
         this.contadorAlumnos = 0;
-        this.estadoAlumnos = new HashMap<>();
+        this.estadoAlumnos = new LinkedHashMap<>();
         this.alumnosEnCola = new ArrayList<>();
         this.proximoRegresoTecnico = null;
         this.proximaComputadoraMantenimiento = 0;
         this.proximaLlegada = 0;
 
-        this.tiempoOciosoTecnicoAcumulado = 0.0;
-        this.tiempoTrabajadoTecnicoAcumulado = 0.0;
+        this.tiempoOciosoTecnicoAcumulado = 0;
+        this.tiempoTrabajadoTecnicoAcumulado = 0;
         this.cantidadMantenimientosCompletados = 0;
+        this.iteracionesDesdeUltimoReset = 0;
+    }
 
-        this.iteracionesDesdeUltimoReset = 0; // Inicializar el contador
+    public void simularStream(double tiempoTotal, double minutoDesde, int iteracionesMostrar,
+                              Consumer<Map<String, Object>> consumer) {
+        int iteracionesMostradasCount = 0;
+        int iteracion = 0;
+
+// Inicialización
+        double[] llegadaResult = generarTiempoLlegada();
+        double rndLlegada = llegadaResult[0];
+        double tiempoLlegada = llegadaResult[1];
+        proximaLlegada = tiempoLlegada;
+
+// Configurar primer mantenimiento
+        Map<String, Object> primerEquipo = equipos.get(0);
+        double[] mantResult = generarTiempoMantenimiento();
+        primerEquipo.put("estado", "Mantenimiento");
+        primerEquipo.put("fin_mantenimiento", tiempoActual + mantResult[1]);
+        proximaComputadoraMantenimiento = 1;
+
+// Procesar estado inicial
+        if (tiempoActual >= minutoDesde) {
+            consumer.accept(crearEstadoInicial(rndLlegada, tiempoLlegada, mantResult));
+            iteracionesMostradasCount++;
+        }
+
+// Bucle principal
+        while (tiempoActual < tiempoTotal && iteracion < 100000 && iteracionesMostradasCount < iteracionesMostrar) {
+            iteracion++;
+            iteracionesDesdeUltimoReset++;
+
+// Limpieza periódica
+            if (iteracionesDesdeUltimoReset % RESET_INTERVAL == 0) {
+                estadoAlumnos.entrySet().removeIf(entry -> "AF".equals(entry.getValue()));
+                alumnosEnCola.clear();
+                alumnosEnCola.addAll(estadoAlumnos.entrySet().stream()
+                        .filter(entry -> "EC".equals(entry.getValue()))
+                        .map(Map.Entry::getKey)
+                        .collect(Collectors.toList()));
+                iteracionesDesdeUltimoReset = 0;
+            }
+
+            Object[] evento = obtenerProximoEvento();
+            double tiempoEvento = (double) evento[1];
+            if (tiempoEvento > tiempoTotal) break;
+
+// Actualizar tiempo ocioso
+            double duracion = tiempoEvento - tiempoActual;
+            if (!isTechnicianBusyMaintaining() && (proximoRegresoTecnico == null || proximoRegresoTecnico <= tiempoActual)) {
+                tiempoOciosoTecnicoAcumulado += duracion;
+            }
+
+            tiempoActual = tiempoEvento;
+            Map<String, Object> estado = procesarEvento(evento, iteracion);
+
+// Asegurar que todos los alumnos se muestren
+            estadoAlumnos.forEach((id, estadoAlumno) -> {
+                estado.put("Estado " + id, estadoAlumno);
+                if ("SA".equals(estadoAlumno)) {
+                    for (Map<String, Object> equipo : equipos) {
+                        if (id.equals(equipo.get("alumno_actual"))) {
+                            estado.put("Alumno M" + equipo.get("id"), id);
+                        }
+                    }
+                }
+            });
+
+            if (tiempoActual >= minutoDesde && iteracionesMostradasCount < iteracionesMostrar) {
+                consumer.accept(estado);
+                iteracionesMostradasCount++;
+            }
+        }
+    }
+
+    private Map<String, Object> crearEstadoInicial(double rndLlegada, double tiempoLlegada, double[] mantResult) {
+        Map<String, Object> estado = new LinkedHashMap<>();
+        estado.put("Iteracion", 0);
+        estado.put("Evento", "Inicializacion");
+        estado.put("Reloj", redondear(tiempoActual));
+        estado.put("RND Llegada", redondear(rndLlegada));
+        estado.put("Tiempo Llegada", redondear(tiempoLlegada));
+        estado.put("Próxima Llegada", redondear(proximaLlegada));
+
+        for (int i = 0; i < 5; i++) {
+            Map<String, Object> equipo = equipos.get(i);
+            estado.put("Máquina " + (i+1), equipo.get("estado"));
+            estado.put("Fin Inscripción M" + (i+1), null);
+            estado.put("Alumno M" + (i+1), null);
+        }
+
+        estado.put("RND Mantenimiento", redondear(mantResult[0]));
+        estado.put("Tiempo Mantenimiento", redondear(mantResult[1]));
+        estado.put("Fin Mantenimiento", redondear((Double)equipos.get(0).get("fin_mantenimiento")));
+        estado.put("Máquina Mant.", 1);
+
+        estado.put("Acum. Tiempo Trabajado Tec.", 0);
+        estado.put("Tiempo Ocioso Tec.", 0);
+        estado.put("Promedio Tiempo Ocioso Tec.", 0);
+        estado.put("Cola", 0);
+
+// Estados de alumnos
+        estadoAlumnos.forEach((id, estadoAlumno) -> {
+            estado.put("Estado " + id, estadoAlumno);
+            if ("SA".equals(estadoAlumno)) {
+                for (Map<String, Object> equipo : equipos) {
+                    if (id.equals(equipo.get("alumno_actual"))) {
+                        estado.put("Alumno M" + equipo.get("id"), id);
+                    }
+                }
+            }
+        });
+
+        return estado;
+    }
+
+    private Map<String, Object> procesarEvento(Object[] evento, int iteracion) {
+        Map<String, Object> estado = new LinkedHashMap<>();
+        estado.put("Iteracion", iteracion);
+        estado.put("Reloj", redondear(tiempoActual));
+
+        String tipoEvento = (String) evento[0];
+        switch (tipoEvento) {
+            case "llegada":
+                return procesarLlegada(estado);
+            case "fin_inscripcion":
+                return procesarFinInscripcion((Map<String, Object>)evento[2], estado);
+            case "fin_mantenimiento":
+                return procesarFinMantenimiento((Map<String, Object>)evento[2], estado);
+            case "regreso_tecnico":
+                return procesarRegresoTecnico(estado);
+            default:
+                throw new IllegalArgumentException("Evento desconocido: " + tipoEvento);
+        }
+    }
+
+    private Map<String, Object> procesarLlegada(Map<String, Object> estado) {
+        double[] llegada = generarTiempoLlegada();
+        estado.put("Evento", "Llegada Alumno A" + (++contadorAlumnos));
+        estado.put("RND Llegada", llegada[0]);
+        estado.put("Tiempo Llegada", llegada[1]);
+        proximaLlegada = tiempoActual + llegada[1];
+
+        String alumnoId = "A" + contadorAlumnos;
+        if (cola >= 5) {
+            estadoAlumnos.put(alumnoId, "AF");
+            estado.put("Estado " + alumnoId, "AF");
+        } else {
+            Map<String, Object> equipoLibre = obtenerEquipoLibre();
+            if (equipoLibre != null) {
+                double[] inscripcion = generarTiempoInscripcion();
+                equipoLibre.put("estado", "Ocupado");
+                equipoLibre.put("fin_inscripcion", tiempoActual + inscripcion[1]);
+                equipoLibre.put("alumno_actual", alumnoId);
+
+                estado.put("Máquina", equipoLibre.get("id"));
+                estado.put("RND Inscripción", inscripcion[0]);
+                estado.put("Tiempo Inscripción", inscripcion[1]);
+                estado.put("Fin Inscripción", redondear((Double)equipoLibre.get("fin_inscripcion")));
+                estado.put("Alumno M" + equipoLibre.get("id"), alumnoId);
+
+                estadoAlumnos.put(alumnoId, "SA");
+                estado.put("Estado " + alumnoId, "SA");
+            } else {
+                cola++;
+                estadoAlumnos.put(alumnoId, "EC");
+                alumnosEnCola.add(alumnoId);
+                estado.put("Estado " + alumnoId, "EC");
+            }
+        }
+        estado.put("Cola", cola);
+        return estado;
+    }
+
+    private Map<String, Object> procesarFinInscripcion(Map<String, Object> equipo, Map<String, Object> estado) {
+        String alumnoId = (String) equipo.get("alumno_actual");
+        estado.put("Evento", "Fin Inscripción " + alumnoId);
+
+// Liberar equipo
+        equipo.put("estado", "Libre");
+        equipo.put("fin_inscripcion", null);
+        equipo.put("alumno_actual", null);
+        estadoAlumnos.put(alumnoId, "AF");
+        estado.put("Estado " + alumnoId, "AF");
+
+        estado.put("Máquina", equipo.get("id"));
+        estado.put("Fin Inscripción", null);
+        estado.put("Alumno M" + equipo.get("id"), null);
+
+// Programar mantenimiento si es necesario
+        if (proximoRegresoTecnico == null) {
+            if (proximaComputadoraMantenimiento < 5 &&
+                    equipo.get("id").equals(equipos.get(proximaComputadoraMantenimiento).get("id"))) {
+
+                double[] mantResult = generarTiempoMantenimiento();
+                equipo.put("estado", "Mantenimiento");
+                equipo.put("fin_mantenimiento", tiempoActual + mantResult[1]);
+                proximaComputadoraMantenimiento++;
+
+                estado.put("Máquina Mant.", equipo.get("id"));
+                estado.put("RND Mantenimiento", mantResult[0]);
+                estado.put("Tiempo Mantenimiento", mantResult[1]);
+                estado.put("Fin Mantenimiento", redondear((Double)equipo.get("fin_mantenimiento")));
+            }
+        }
+
+// Atender siguiente alumno en cola si hay
+        if (!alumnosEnCola.isEmpty()) {
+            String siguienteAlumno = alumnosEnCola.remove(0);
+            Map<String, Object> equipoLibre = obtenerEquipoLibre();
+            if (equipoLibre != null) {
+                double[] inscripcion = generarTiempoInscripcion();
+                equipoLibre.put("estado", "Ocupado");
+                equipoLibre.put("fin_inscripcion", tiempoActual + inscripcion[1]);
+                equipoLibre.put("alumno_actual", siguienteAlumno);
+                cola--;
+
+                estado.put("Máquina", equipoLibre.get("id"));
+                estado.put("RND Inscripción", inscripcion[0]);
+                estado.put("Tiempo Inscripción", inscripcion[1]);
+                estado.put("Fin Inscripción", redondear((Double)equipoLibre.get("fin_inscripcion")));
+                estado.put("Alumno M" + equipoLibre.get("id"), siguienteAlumno);
+
+                estadoAlumnos.put(siguienteAlumno, "SA");
+                estado.put("Estado " + siguienteAlumno, "SA");
+            }
+        }
+
+        estado.put("Cola", cola);
+        estado.put("Acum. Tiempo Trabajado Tec.", redondear(tiempoTrabajadoTecnicoAcumulado));
+        estado.put("Tiempo Ocioso Tec.", redondear(tiempoOciosoTecnicoAcumulado));
+        return estado;
+    }
+
+    private Map<String, Object> procesarFinMantenimiento(Map<String, Object> equipo, Map<String, Object> estado) {
+        estado.put("Evento", "Fin Mantenimiento M" + equipo.get("id"));
+
+// Registrar tiempo trabajado
+        double duracion = (double) equipo.get("fin_mantenimiento") - (tiempoActual - ((double)equipo.get("fin_mantenimiento") - tiempoActual));
+        tiempoTrabajadoTecnicoAcumulado += duracion;
+        cantidadMantenimientosCompletados++;
+
+// Liberar equipo
+        equipo.put("estado", "Libre");
+        equipo.put("fin_mantenimiento", null);
+        estado.put("Fin Mantenimiento", null);
+        estado.put("Máquina Mant.", null);
+
+// Programar próximo mantenimiento o regreso
+        if (proximoRegresoTecnico == null) {
+            if (proximaComputadoraMantenimiento < 5) {
+                Map<String, Object> siguienteEquipo = equipos.get(proximaComputadoraMantenimiento);
+                if ("Libre".equals(siguienteEquipo.get("estado"))) {
+                    double[] mantResult = generarTiempoMantenimiento();
+                    siguienteEquipo.put("estado", "Mantenimiento");
+                    siguienteEquipo.put("fin_mantenimiento", tiempoActual + mantResult[1]);
+                    proximaComputadoraMantenimiento++;
+
+                    estado.put("Máquina Mant.", siguienteEquipo.get("id"));
+                    estado.put("RND Mantenimiento", mantResult[0]);
+                    estado.put("Tiempo Mantenimiento", mantResult[1]);
+                    estado.put("Fin Mantenimiento", redondear((Double)siguienteEquipo.get("fin_mantenimiento")));
+                }
+            } else {
+                double[] regresoResult = generarTiempoRegreso();
+                proximoRegresoTecnico = tiempoActual + regresoResult[1];
+                proximaComputadoraMantenimiento = 0;
+
+                estado.put("RND Tiempo Vuelta", regresoResult[0]);
+                estado.put("Tiempo Vuelta", regresoResult[1]);
+                estado.put("Próximo Inicio Mantenimiento", redondear(proximoRegresoTecnico));
+            }
+        }
+
+// Atender alumnos en cola si hay
+        if (!alumnosEnCola.isEmpty() && "Libre".equals(equipo.get("estado"))) {
+            String siguienteAlumno = alumnosEnCola.remove(0);
+            double[] inscripcion = generarTiempoInscripcion();
+            equipo.put("estado", "Ocupado");
+            equipo.put("fin_inscripcion", tiempoActual + inscripcion[1]);
+            equipo.put("alumno_actual", siguienteAlumno);
+            cola--;
+
+            estado.put("Máquina", equipo.get("id"));
+            estado.put("RND Inscripción", inscripcion[0]);
+            estado.put("Tiempo Inscripción", inscripcion[1]);
+            estado.put("Fin Inscripción", redondear((Double)equipo.get("fin_inscripcion")));
+            estado.put("Alumno M" + equipo.get("id"), siguienteAlumno);
+
+            estadoAlumnos.put(siguienteAlumno, "SA");
+            estado.put("Estado " + siguienteAlumno, "SA");
+        }
+
+        estado.put("Cola", cola);
+        estado.put("Acum. Tiempo Trabajado Tec.", redondear(tiempoTrabajadoTecnicoAcumulado));
+        estado.put("Tiempo Ocioso Tec.", redondear(tiempoOciosoTecnicoAcumulado));
+        return estado;
+    }
+
+    private Map<String, Object> procesarRegresoTecnico(Map<String, Object> estado) {
+        estado.put("Evento", "Regreso Técnico");
+        proximoRegresoTecnico = null;
+
+// Buscar siguiente equipo para mantenimiento
+        Map<String, Object> siguienteEquipo = null;
+        for (int i = proximaComputadoraMantenimiento; i < 5; i++) {
+            if ("Libre".equals(equipos.get(i).get("estado"))) {
+                siguienteEquipo = equipos.get(i);
+                proximaComputadoraMantenimiento = i + 1;
+                break;
+            }
+        }
+
+        if (siguienteEquipo != null) {
+            double[] mantResult = generarTiempoMantenimiento();
+            siguienteEquipo.put("estado", "Mantenimiento");
+            siguienteEquipo.put("fin_mantenimiento", tiempoActual + mantResult[1]);
+
+            estado.put("Máquina Mant.", siguienteEquipo.get("id"));
+            estado.put("RND Mantenimiento", mantResult[0]);
+            estado.put("Tiempo Mantenimiento", mantResult[1]);
+            estado.put("Fin Mantenimiento", redondear((Double)siguienteEquipo.get("fin_mantenimiento")));
+        } else {
+            proximaComputadoraMantenimiento = 0;
+        }
+
+        return estado;
     }
 
     private double[] generarTiempoLlegada() {
         double rnd = ThreadLocalRandom.current().nextDouble();
         double tiempo = -mediaLlegada * Math.log(1 - rnd);
-        return new double[]{rnd, Math.round(tiempo * 100.0) / 100.0};
+        return new double[]{redondear(rnd), redondear(tiempo)};
     }
 
     private double[] generarTiempoInscripcion() {
         double rnd = ThreadLocalRandom.current().nextDouble();
         double tiempo = infInscripcion + (supInscripcion - infInscripcion) * rnd;
-        return new double[]{rnd, Math.round(tiempo * 100.0) / 100.0};
+        return new double[]{redondear(rnd), redondear(tiempo)};
     }
 
     private double[] generarTiempoMantenimiento() {
         double rnd = ThreadLocalRandom.current().nextDouble();
         double tiempo = minMantenimiento + (maxMantenimiento - minMantenimiento) * rnd;
-        return new double[]{rnd, Math.round(tiempo * 100.0) / 100.0};
+        return new double[]{redondear(rnd), redondear(tiempo)};
     }
 
     private double[] generarTiempoRegreso() {
         double rnd = Math.random() < 0.5 ? -1 : 1;
-        double tiempoRegreso = baseRegresoTecnico + rangoRegresoTecnico * rnd;
-        if (tiempoRegreso < 0) {
-            tiempoRegreso = 0;
-        }
-        return new double[]{rnd, Math.round(tiempoRegreso * 100.0) / 100.0};
-    }
-
-    private Map<String, Object> obtenerEquipoLibre() {
-        for (Map<String, Object> equipo : equipos) {
-            if (equipo.get("estado") == EstadoEquipo.LIBRE && equipo.get("fin_mantenimiento") == null) {
-                return equipo;
-            }
-        }
-        return null;
-    }
-
-    private boolean isTechnicianBusyMaintaining() {
-        for (Map<String, Object> equipo : equipos) {
-            if (equipo.get("estado") == EstadoEquipo.MANTENIMIENTO) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void actualizarEstadoAlumno(String idAlumno, EstadoAlumno estado) {
-        if (estado == EstadoAlumno.ATENCION_FINALIZADA) {
-            estadoAlumnos.remove(idAlumno);
-            alumnosEnCola.remove(idAlumno); // Asegurarse de quitarlo también de la cola
-        } else {
-            if (!estadoAlumnos.containsKey(idAlumno) || !estadoAlumnos.get(idAlumno).equals(estado)) {
-                estadoAlumnos.put(idAlumno, estado);
-
-                if (estado == EstadoAlumno.EN_COLA) {
-                    if (!alumnosEnCola.contains(idAlumno)) {
-                        alumnosEnCola.add(idAlumno);
-                    }
-                } else if (estado == EstadoAlumno.SIENDO_ATENDIDO) {
-                    alumnosEnCola.remove(idAlumno);
-                }
-            }
-        }
-    }
-
-    private void agregarEstadosAlumnos(Map<String, Object> estadoActual) {
-        estadoActual.put("Cola", cola);
-
-        // Solo agregamos los estados de los alumnos que están activos en el HashMap
-        for (Map.Entry<String, EstadoAlumno> entry : estadoAlumnos.entrySet()) {
-            estadoActual.put("Estado " + entry.getKey(), entry.getValue().getValue());
-        }
-
+        double tiempo = baseRegresoTecnico + rangoRegresoTecnico * rnd;
+        return new double[]{redondear(rnd), redondear(Math.max(tiempo, 0))};
     }
 
     private Object[] obtenerProximoEvento() {
@@ -260,432 +534,32 @@ class Simulacion implements Serializable {
             eventos.add(new Object[]{"regreso_tecnico", proximoRegresoTecnico});
         }
 
-        for (Map<String, Object> equipo : equipos) {
+        equipos.forEach(equipo -> {
             if (equipo.get("fin_mantenimiento") instanceof Double) {
-                eventos.add(new Object[]{"fin_mantenimiento", (Double) equipo.get("fin_mantenimiento"), equipo});
+                eventos.add(new Object[]{"fin_mantenimiento", equipo.get("fin_mantenimiento"), equipo});
             }
             if (equipo.get("fin_inscripcion") instanceof Double) {
-                eventos.add(new Object[]{"fin_inscripcion", (Double) equipo.get("fin_inscripcion"), equipo});
+                eventos.add(new Object[]{"fin_inscripcion", equipo.get("fin_inscripcion"), equipo});
             }
-        }
+        });
 
-        if (eventos.isEmpty()) {
-            throw new RuntimeException("No hay eventos futuros definidos, la simulación no puede continuar.");
-        }
-
-        eventos.sort(Comparator.comparingDouble(o -> (double) o[1]));
-        return eventos.get(0);
+        return eventos.stream()
+                .min(Comparator.comparingDouble(e -> (double)e[1]))
+                .orElseThrow(() -> new RuntimeException("No hay eventos futuros"));
     }
 
-    // Metodo principal
-    public List<Map<String, Object>> simular(double tiempoTotal, double minutoDesde, int iteracionesMostrar) {
-        List<Map<String, Object>> resultadosFiltrados = new ArrayList<>();
-        int iteracionesMostradasCount = 0;
-        Map<String, Object> estadoAnterior = null;
-
-        double[] llegadaResult = generarTiempoLlegada();
-        double rndLlegada = llegadaResult[0];
-        double tiempoLlegada = llegadaResult[1];
-
-        tiempoActual = 0;
-        proximaLlegada = tiempoLlegada;
-        contadorAlumnos = 0;
-
-        tiempoOciosoTecnicoAcumulado = 0.0;
-        tiempoTrabajadoTecnicoAcumulado = 0.0;
-        cantidadMantenimientosCompletados = 0;
-
-        Map<String, Object> primerEquipoMantenimiento = equipos.get(0);
-        double[] mantResult = generarTiempoMantenimiento();
-        double rndMantInicial = mantResult[0];
-        double tiempoMantInicial = mantResult[1];
-
-        primerEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
-        primerEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMantInicial);
-        primerEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMantInicial);
-        proximaComputadoraMantenimiento = 1;
-        proximoRegresoTecnico = null;
-
-
-        Map<String, Object> estadoInicial = new LinkedHashMap<>();
-        estadoInicial.put("Iteracion", 0);
-        estadoInicial.put("Evento", "Inicializacion");
-        estadoInicial.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
-        estadoInicial.put("RND Llegada", Math.round(rndLlegada * 100.0) / 100.0);
-        estadoInicial.put("Tiempo Llegada", Math.round(tiempoLlegada * 100.0) / 100.0);
-        estadoInicial.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
-
-        estadoInicial.put("Máquina", null);
-        estadoInicial.put("RND Inscripción", null);
-        estadoInicial.put("Tiempo Inscripción", null);
-        estadoInicial.put("Fin Inscripción", null);
-
-        estadoInicial.put("Máquina Mant.", primerEquipoMantenimiento.get("id"));
-        estadoInicial.put("RND Mantenimiento", Math.round(rndMantInicial * 100.0) / 100.0);
-        estadoInicial.put("Tiempo Mantenimiento", Math.round(tiempoMantInicial * 100.0) / 100.0);
-        estadoInicial.put("Fin Mantenimiento", Math.round((Double) primerEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
-        estadoInicial.put("RND Tiempo Vuelta", null);
-        estadoInicial.put("Tiempo Vuelta", null);
-        estadoInicial.put("Próximo Inicio Mantenimiento", null);
-
-        estadoInicial.put("Acum. Tiempo Trabajado Tec.", 0.0);
-        estadoInicial.put("Tiempo Ocioso Tec.", 0.0);
-        estadoInicial.put("Promedio Tiempo Ocioso Tec.", 0.0);
-
-        for (int i = 0; i < equipos.size(); i++) {
-            Map<String, Object> equipo = equipos.get(i);
-            estadoInicial.put("Máquina " + (i + 1), ((EstadoEquipo) equipo.get("estado")).getValue());
-            estadoInicial.put("Fin Inscripción M" + (i + 1), null);
-            estadoInicial.put("Fin Mantenimiento M" + (i + 1), equipo.get("fin_mantenimiento") != null ? Math.round((Double) equipo.get("fin_mantenimiento") * 100.0) / 100.0 : null);
-            estadoInicial.put("Alumno M" + (i + 1), null);
-        }
-
-        agregarEstadosAlumnos(estadoInicial);
-
-        if (tiempoActual >= minutoDesde && iteracionesMostradasCount < iteracionesMostrar) {
-            resultadosFiltrados.add(estadoInicial);
-            iteracionesMostradasCount++;
-        }
-        estadoAnterior = estadoInicial;
-
-        Integer iteracion = 0;
-        while (tiempoActual < tiempoTotal && iteracion < 100000) { // Aumentar el límite de iteraciones si es necesario
-            iteracion++;
-            iteracionesDesdeUltimoReset++;
-
-            if (iteracionesMostradasCount >= iteracionesMostrar && tiempoActual >= minutoDesde) {
-                break;
-            }
-
-            // Lógica de reseteo cada 500 iteraciones
-            if (iteracionesDesdeUltimoReset % RESET_INTERVAL == 0) {
-                // Filtramos estadoAlumnos para mantener solo los alumnos que no han finalizado su atención.
-                // Los alumnos en cola o siendo atendidos son los únicos relevantes para el futuro de la simulación.
-                estadoAlumnos.entrySet().removeIf(entry -> entry.getValue() == EstadoAlumno.ATENCION_FINALIZADA);
-
-                // Reconstruimos alumnosEnCola basándonos en los alumnos que aún están en estadoAlumnos y en cola
-                alumnosEnCola = estadoAlumnos.entrySet().stream()
-                        .filter(entry -> entry.getValue() == EstadoAlumno.EN_COLA)
-                        .map(Map.Entry::getKey)
-                        .collect(Collectors.toCollection(ArrayList::new));
-
-                iteracionesDesdeUltimoReset = 0; // Reiniciar el contador después del reseteo
-            }
-
-            Object[] evento = obtenerProximoEvento();
-            double proximoTiempoEvento = (double) evento[1];
-
-            if (proximoTiempoEvento > tiempoTotal) {
-                break;
-            }
-
-            double duracionIntervalo = proximoTiempoEvento - tiempoActual;
-
-            if (duracionIntervalo > 0) {
-                if (!isTechnicianBusyMaintaining()) {
-                    if (proximoRegresoTecnico == null || proximoRegresoTecnico <= tiempoActual) {
-                        tiempoOciosoTecnicoAcumulado += duracionIntervalo;
-                    }
-                }
-            }
-
-            tiempoActual = proximoTiempoEvento;
-            String tipoEvento = (String) evento[0];
-
-
-            Map<String, Object> estado = new LinkedHashMap<>();
-            estado.put("Iteracion", iteracion);
-            estado.put("Reloj", Math.round(tiempoActual * 100.0) / 100.0);
-
-            // Le carga los datos del estado anterior
-            if (estadoAnterior != null) {
-                for (Map.Entry<String, Object> entry : estadoAnterior.entrySet()) {
-                    // Copiamos todas las claves del estado anterior, excepto las relacionadas con alumnos específicos
-                    // que serán agregadas nuevamente por agregarEstadosAlumnos()
-                    if (!entry.getKey().equals("Evento") && !entry.getKey().equals("Reloj")
-                            && !entry.getKey().equals("Iteracion") && !entry.getKey().equals("RND Llegada")
-                            && !entry.getKey().equals("Tiempo Llegada") && !entry.getKey().equals("RND Inscripción")
-                            && !entry.getKey().equals("Tiempo Inscripción") && !entry.getKey().equals("Máquina")
-                            && !entry.getKey().equals("RND Mantenimiento") && !entry.getKey().equals("Tiempo Mantenimiento")
-                            && !entry.getKey().equals("Máquina Mant.") && !entry.getKey().equals("RND Tiempo Vuelta")
-                            && !entry.getKey().equals("Tiempo Vuelta") && !entry.getKey().equals("Acum. Tiempo Trabajado Tec.")
-                            && !entry.getKey().equals("Tiempo Ocioso Tec.") && !entry.getKey().equals("Promedio Tiempo Ocioso Tec.")
-                            && !entry.getKey().startsWith("Estado A")
-                    ) {
-                        estado.put(entry.getKey(), entry.getValue());
-                    }
-                }
-            }
-
-            estado.put("Máquina", null);
-            estado.put("RND Inscripción", null);
-            estado.put("Tiempo Inscripción", null);
-            estado.put("Fin Inscripción", null);
-            estado.put("Máquina Mant.", null);
-            estado.put("RND Mantenimiento", null);
-            estado.put("Tiempo Mantenimiento", null);
-            estado.put("Fin Mantenimiento", null);
-            estado.put("RND Tiempo Vuelta", null);
-            estado.put("Tiempo Vuelta", null);
-            estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
-
-            switch (tipoEvento) {
-                case "llegada":
-                    double[] newLlegadaResult = generarTiempoLlegada();
-                    rndLlegada = newLlegadaResult[0];
-                    tiempoLlegada = newLlegadaResult[1];
-                    proximaLlegada = tiempoActual + tiempoLlegada;
-                    contadorAlumnos++;
-                    String idActualAlumno = "A" + contadorAlumnos;
-                    procesarLlegada(idActualAlumno, rndLlegada, tiempoLlegada, estado);
-                    break;
-                case "fin_mantenimiento":
-                    Map<String, Object> equipoFinMant = (Map<String, Object>) evento[2];
-                    procesarFinMantenimiento(equipoFinMant, estado);
-                    break;
-                case "fin_inscripcion":
-                    Map<String, Object> equipoFinInsc = (Map<String, Object>) evento[2];
-                    procesarFinInscripcion(equipoFinInsc, estado);
-                    break;
-                case "regreso_tecnico":
-                    procesarRegresoTecnico(estado);
-                    break;
-            }
-
-            for (int i = 0; i < equipos.size(); i++) {
-                Map<String, Object> currentEquipo = equipos.get(i);
-                estado.put("Máquina " + (i + 1), ((EstadoEquipo) currentEquipo.get("estado")).getValue());
-                Double finInsc = (Double) currentEquipo.get("fin_inscripcion");
-                estado.put("Fin Inscripción M" + (i + 1), finInsc != null ? Math.round(finInsc * 100.0) / 100.0 : null);
-                Double finMant = (Double) currentEquipo.get("fin_mantenimiento");
-                estado.put("Fin Mantenimiento M" + (i + 1), finMant != null ? Math.round(finMant * 100.0) / 100.0 : null);
-                estado.put("Alumno M" + (i + 1), currentEquipo.get("alumno_actual"));
-            }
-
-            estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
-            estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
-
-            estado.put("Tiempo Ocioso Tec.", Math.round(tiempoOciosoTecnicoAcumulado * 100.0) / 100.0);
-            estado.put("Promedio Tiempo Ocioso Tec.", cantidadMantenimientosCompletados > 0 ? Math.round((tiempoOciosoTecnicoAcumulado / cantidadMantenimientosCompletados) * 100.0) / 100.0 : 0.0);
-            estado.put("Acum. Tiempo Trabajado Tec.", Math.round(tiempoTrabajadoTecnicoAcumulado * 100.0) / 100.0);
-
-            agregarEstadosAlumnos(estado); // Esto agregará solo los alumnos *actualmente* en estadoAlumnos
-
-            if (tiempoActual >= minutoDesde && iteracionesMostradasCount < iteracionesMostrar && iteracion != 100000) {
-                resultadosFiltrados.add(estado);
-                iteracionesMostradasCount++;
-            }
-            if(iteracion == 100000){
-                resultadosFiltrados.add(estado);
-                iteracionesMostradasCount++;
-            }
-            // Se guarda el estado actual, el cual pasara a ser el anterior en la proxima iteracion para poder crear el estado actual de la proxima iteracion
-            estadoAnterior = estado;
-
-        }
-
-        return resultadosFiltrados;
+    private Map<String, Object> obtenerEquipoLibre() {
+        return equipos.stream()
+                .filter(e -> "Libre".equals(e.get("estado")) && e.get("fin_mantenimiento") == null)
+                .findFirst()
+                .orElse(null);
     }
 
-
-    private void procesarLlegada(String idAlumno, double rndLlegada, double tiempoLlegada, Map<String, Object> estado) {
-        estado.put("Evento", "Llegada Alumno " + idAlumno);
-        estado.put("RND Llegada", Math.round(rndLlegada * 100.0) / 100.0);
-        estado.put("Tiempo Llegada", Math.round(tiempoLlegada * 100.0) / 100.0);
-
-        if (cola >= 5) {
-            actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA); // El alumno se va
-            estado.put("Máquina", null); // No ocupa máquina
-            estado.put("RND Inscripción", null);
-            estado.put("Tiempo Inscripción", null);
-            estado.put("Fin Inscripción", null);
-            estado.put("Alumno Atendido", "No"); // Indicador para el resultado
-        } else {
-            Map<String, Object> equipoLibre = obtenerEquipoLibre();
-            if (equipoLibre != null) {
-                equipoLibre.put("estado", EstadoEquipo.OCUPADO);
-                double[] insResult = generarTiempoInscripcion();
-                double rndIns = insResult[0];
-                double tiempoIns = insResult[1];
-                equipoLibre.put("fin_inscripcion", tiempoActual + tiempoIns);
-                equipoLibre.put("alumno_actual", idAlumno);
-
-                estado.put("Máquina", equipoLibre.get("id"));
-                estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
-                estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
-                estado.put("Fin Inscripción", Math.round((Double) equipoLibre.get("fin_inscripcion") * 100.0) / 100.0);
-
-                actualizarEstadoAlumno(idAlumno, EstadoAlumno.SIENDO_ATENDIDO);
-            } else {
-                cola++;
-                actualizarEstadoAlumno(idAlumno, EstadoAlumno.EN_COLA);
-            }
-        }
+    private boolean isTechnicianBusyMaintaining() {
+        return equipos.stream().anyMatch(e -> "Mantenimiento".equals(e.get("estado")));
     }
 
-    private void procesarFinMantenimiento(Map<String, Object> equipo, Map<String, Object> estado) {
-        estado.put("Evento", "Fin Mantenimiento M" + equipo.get("id"));
-
-        double prevMantDuration = (double) equipo.getOrDefault("duracion_mantenimiento_actual", 0.0);
-        if (prevMantDuration > 0) {
-            tiempoTrabajadoTecnicoAcumulado += prevMantDuration;
-            cantidadMantenimientosCompletados++;
-        }
-
-        equipo.put("estado", EstadoEquipo.LIBRE);
-        equipo.put("fin_mantenimiento", null);
-        equipo.put("duracion_mantenimiento_actual", null);
-
-        estado.put("Fin Mantenimiento", null);
-        estado.put("Máquina Mant.", null);
-
-        boolean technicianTookMachine = false;
-        if (proximoRegresoTecnico == null) {
-            Map<String, Object> siguienteEquipoMantenimiento = null;
-            if (proximaComputadoraMantenimiento < equipos.size()) {
-                siguienteEquipoMantenimiento = equipos.get(proximaComputadoraMantenimiento);
-            }
-
-            if (siguienteEquipoMantenimiento != null && siguienteEquipoMantenimiento.get("estado") != EstadoEquipo.OCUPADO) {
-                double[] mantResult = generarTiempoMantenimiento();
-                double rndMant = mantResult[0];
-                double tiempoMant = mantResult[1];
-
-                siguienteEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
-                siguienteEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMant);
-                siguienteEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMant);
-                proximaComputadoraMantenimiento++;
-                technicianTookMachine = true;
-
-                estado.put("Máquina Mant.", siguienteEquipoMantenimiento.get("id"));
-                estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
-                estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
-                estado.put("Fin Mantenimiento", Math.round((Double) siguienteEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
-            }
-        }
-
-        if (!technicianTookMachine && proximoRegresoTecnico == null) {
-            if (proximaComputadoraMantenimiento >= equipos.size() || isTechnicianBusyMaintaining()) {
-                double[] regresoResult = generarTiempoRegreso();
-                double rndVuelta = regresoResult[0];
-                double tiempoVuelta = regresoResult[1];
-                proximoRegresoTecnico = tiempoActual + tiempoVuelta;
-                proximaComputadoraMantenimiento = 0;
-
-                estado.put("RND Tiempo Vuelta", Math.round(rndVuelta * 100.0) / 100.0);
-                estado.put("Tiempo Vuelta", Math.round(tiempoVuelta * 100.0) / 100.0);
-                estado.put("Próximo Inicio Mantenimiento", Math.round(proximoRegresoTecnico * 100.0) / 100.0);
-            }
-        }
-
-        if (!alumnosEnCola.isEmpty() && equipo.get("estado") == EstadoEquipo.LIBRE) {
-            String siguienteAlumno = alumnosEnCola.get(0); // Tomamos el primer alumno en cola
-            double[] insResult = generarTiempoInscripcion();
-            double rndIns = insResult[0];
-            double tiempoIns = insResult[1];
-
-            equipo.put("estado", EstadoEquipo.OCUPADO);
-            equipo.put("fin_inscripcion", tiempoActual + tiempoIns);
-            equipo.put("alumno_actual", siguienteAlumno);
-            actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.SIENDO_ATENDIDO);
-            cola--;
-
-            estado.put("Máquina", equipo.get("id"));
-            estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
-            estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
-            estado.put("Fin Inscripción", Math.round((Double) equipo.get("fin_inscripcion") * 100.0) / 100.0);
-        } else if (equipo.get("estado") == EstadoEquipo.LIBRE) {
-            estado.put("Máquina", equipo.get("id"));
-        }
-    }
-
-    private void procesarFinInscripcion(Map<String, Object> equipo, Map<String, Object> estado) {
-        String alumnoFinalizado = (String) equipo.get("alumno_actual");
-        actualizarEstadoAlumno(alumnoFinalizado, EstadoAlumno.ATENCION_FINALIZADA); // Marcamos como finalizado para futura limpieza
-
-        equipo.put("estado", EstadoEquipo.LIBRE);
-        equipo.put("fin_inscripcion", null);
-        equipo.put("alumno_actual", null);
-
-        estado.put("Evento", "Fin Inscripción " + alumnoFinalizado);
-        estado.put("Máquina", equipo.get("id"));
-        estado.put("Fin Inscripción", null);
-
-        boolean technicianTookMachine = false;
-        if (proximoRegresoTecnico == null) {
-            if (proximaComputadoraMantenimiento < equipos.size() &&
-                    equipo.get("id").equals(equipos.get(proximaComputadoraMantenimiento).get("id")) &&
-                    !isTechnicianBusyMaintaining()) {
-
-                double[] mantResult = generarTiempoMantenimiento();
-                double rndMant = mantResult[0];
-                double tiempoMant = mantResult[1];
-
-                equipo.put("estado", EstadoEquipo.MANTENIMIENTO);
-                equipo.put("fin_mantenimiento", tiempoActual + tiempoMant);
-                equipo.put("duracion_mantenimiento_actual", tiempoMant);
-
-                proximaComputadoraMantenimiento++;
-                technicianTookMachine = true;
-
-                estado.put("Máquina Mant.", equipo.get("id"));
-                estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
-                estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
-                estado.put("Fin Mantenimiento", Math.round((Double) equipo.get("fin_mantenimiento") * 100.0) / 100.0);
-            }
-        }
-
-        if (!technicianTookMachine && !alumnosEnCola.isEmpty()) {
-            String siguienteAlumno = alumnosEnCola.get(0);
-            double[] insResult = generarTiempoInscripcion();
-            double rndIns = insResult[0];
-            double tiempoIns = insResult[1];
-
-            equipo.put("estado", EstadoEquipo.OCUPADO);
-            equipo.put("fin_inscripcion", tiempoActual + tiempoIns);
-            equipo.put("alumno_actual", siguienteAlumno);
-            actualizarEstadoAlumno(siguienteAlumno, EstadoAlumno.SIENDO_ATENDIDO);
-            cola--;
-
-            estado.put("Máquina", equipo.get("id"));
-            estado.put("RND Inscripción", Math.round(rndIns * 100.0) / 100.0);
-            estado.put("Tiempo Inscripción", Math.round(tiempoIns * 100.0) / 100.0);
-            estado.put("Fin Inscripción", Math.round((Double) equipo.get("fin_inscripcion") * 100.0) / 100.0);
-        } else if (equipo.get("estado") == EstadoEquipo.LIBRE) {
-            estado.put("Máquina", equipo.get("id"));
-        }
-    }
-
-    private void procesarRegresoTecnico(Map<String, Object> estado) {
-        estado.put("Evento", "Regreso Técnico");
-        estado.put("RND Tiempo Vuelta", null); // Ya se generó antes
-        estado.put("Tiempo Vuelta", null); // Ya se generó antes
-        proximoRegresoTecnico = null; // El técnico ya regresó
-
-        // Al regresar, el técnico debe tomar la próxima máquina en mantenimiento si está libre
-        Map<String, Object> siguienteEquipoMantenimiento = null;
-        if (proximaComputadoraMantenimiento < equipos.size()) {
-            siguienteEquipoMantenimiento = equipos.get(proximaComputadoraMantenimiento);
-        }
-
-        if (siguienteEquipoMantenimiento != null && siguienteEquipoMantenimiento.get("estado") == EstadoEquipo.LIBRE) {
-            double[] mantResult = generarTiempoMantenimiento();
-            double rndMant = mantResult[0];
-            double tiempoMant = mantResult[1];
-
-            siguienteEquipoMantenimiento.put("estado", EstadoEquipo.MANTENIMIENTO);
-            siguienteEquipoMantenimiento.put("fin_mantenimiento", tiempoActual + tiempoMant);
-            siguienteEquipoMantenimiento.put("duracion_mantenimiento_actual", tiempoMant);
-            proximaComputadoraMantenimiento++;
-
-            estado.put("Máquina Mant.", siguienteEquipoMantenimiento.get("id"));
-            estado.put("RND Mantenimiento", Math.round(rndMant * 100.0) / 100.0);
-            estado.put("Tiempo Mantenimiento", Math.round(tiempoMant * 100.0) / 100.0);
-            estado.put("Fin Mantenimiento", Math.round((Double) siguienteEquipoMantenimiento.get("fin_mantenimiento") * 100.0) / 100.0);
-            estado.put("Próximo Inicio Mantenimiento", null); // No hay próximo regreso ya que acaba de empezar un mantenimiento
-        } else {
-            // Si no hay máquina libre o no es el momento de tomar una, el técnico queda ocioso
-            estado.put("Próximo Inicio Mantenimiento", null); // Si no toma una, no hay un próximo inicio de mantenimiento programado
-        }
+    private double redondear(double valor) {
+        return Math.round(valor * 100.0) / 100.0;
     }
 }
