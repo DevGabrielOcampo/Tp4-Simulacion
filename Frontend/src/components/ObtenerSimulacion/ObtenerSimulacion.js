@@ -299,9 +299,6 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                         onChange={handleChange}
                         isInvalid={touched.minutosBaseTecnico && !!errors.minutosBaseTecnico}
                         />
-                        <Form.Control.Feedback type="invalid" className='errores'>
-                        {errors.minutosBaseTecnico}
-                        </Form.Control.Feedback>
                     </Col>
 
                     <Col md={6}>
@@ -315,9 +312,6 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                         onChange={handleChange}
                         isInvalid={touched.minutosRangoTecnico && !!errors.minutosRangoTecnico}
                         />
-                        <Form.Control.Feedback type="invalid" className='errores'>
-                        {errors.minutosRangoTecnico}
-                        </Form.Control.Feedback>
                     </Col>
 
                     {/* Mostrar errores para el grupo de tiempos del técnico si no están individualizados */}
