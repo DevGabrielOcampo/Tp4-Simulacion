@@ -12,15 +12,27 @@ function ObtenerSimulacion({ setDatosGenerados }) {
         // Validaciones para "Cantidad de minutos a simular"
         minutosSimulacion: Yup
             .number()
-            .required("Se necesita ingresar 1los minutos")
-            .positive("Número positivo")
+            .required("Se necesita ingresar los minutos a simular")
+            .positive("El número debe ser positivo")
             .moreThan(0, "El número debe ser mayor a 0"),
 
         // Validaciones para "Mostrar desde minuto"
         minutoDesde: Yup
             .number()
             .required("Se necesita ingresar el minuto inicial")
-            .min(0, "Debe ser mayor o igual a 0"),
+            .min(0, "Debe ser mayor o igual a 0")
+            .test(
+                'minutoDesde-lessThanOrEqualTo-minutosSimulacion',
+                'El "Minuto desde" no puede ser mayor que "Minutos a simular"',
+                function (value) {
+                    const { minutosSimulacion } = this.parent;
+                    // Solo validar si ambos campos tienen un valor numérico
+                    if (value !== undefined && minutosSimulacion !== undefined) {
+                        return value <= minutosSimulacion;
+                    }
+                    return true; // Si alguno no tiene valor, la validación pasa (ya Required lo maneja)
+                }
+            ),
 
         // Validaciones para "Cantidad de iteraciones"
         iteraciones: Yup
@@ -97,19 +109,31 @@ function ObtenerSimulacion({ setDatosGenerados }) {
         minutosBaseTecnico: Yup
             .number()
             .required("Se necesita ingresar los minutos base")
-            .positive("Número positivo")
+            .positive("El número debe ser positivo")
             .moreThan(0, "El número debe ser mayor a 0"),
 
         minutosRangoTecnico: Yup
             .number()
             .required("Se necesita ingresar el rango de minutos")
-            .min(0, "Debe ser mayor o igual a 0"),
+            .min(0, "Debe ser mayor o igual a 0")
+            .test(
+                'minutosRangoTecnico-lessThanOrEqualTo-minutosBaseTecnico',
+                'El "Tiempo adicional" no puede ser mayor que el "Tiempo base"',
+                function (value) {
+                    const { minutosBaseTecnico } = this.parent;
+                    // Solo validar si ambos campos tienen un valor numérico
+                    if (value !== undefined && minutosBaseTecnico !== undefined) {
+                        return value <= minutosBaseTecnico;
+                    }
+                    return true; // Si alguno no tiene valor, la validación pasa (ya Required lo maneja)
+                }
+            ),
     });
 
 
     const fetchDataFromBackend = async (values) => {
         setIsLoading(true);
-    
+
         // Extraemos los valores del formulario
         const {
             tiempoMinimoInscripcion,
@@ -123,7 +147,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             minutoDesde,
             iteraciones
         } = values;
-    
+
         // Armamos la URL con los parámetros como query params
         const url = `http://localhost:8080/simulacion/run-parametros?` +
             `minInscripcion=${tiempoMinimoInscripcion}&` +
@@ -136,7 +160,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             `minutosSimulacion=${minutosSimulacion}&` +
             `minutoDesde=${minutoDesde}&` +
             `iteracionesMostrar=${iteraciones}`;
-    
+
         try {
             const response = await axios.get(url);
             setDatosGenerados({
@@ -148,7 +172,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             setIsLoading(false);
         }
     };
-    
+
 
     return (
         <Formik
@@ -220,9 +244,10 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                                     isInvalid={touched.tiempoMaximoInscripcion && !!errors.tiempoMaximoInscripcion}
                                 />
                             </InputGroup>
-                            <FormControl.Feedback type="invalid" className='errores'>
-                                {errors.tiempoMinimoInscripcion || errors.tiempoMaximoInscripcion}
-                            </FormControl.Feedback>
+                            {/* Mostrar errores para el grupo de tiempos de inscripción */}
+                            {(touched.tiempoMinimoInscripcion && errors.tiempoMinimoInscripcion) || (touched.tiempoMaximoInscripcion && errors.tiempoMaximoInscripcion) ? (
+                                <div className="errores d-block">{errors.tiempoMinimoInscripcion || errors.tiempoMaximoInscripcion}</div>
+                            ) : null}
                         </Col>
                     </Row>
 
@@ -251,9 +276,10 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                                     isInvalid={touched.tiempoMaximoMantenimiento && !!errors.tiempoMaximoMantenimiento}
                                 />
                             </InputGroup>
-                            <FormControl.Feedback type="invalid" className='errores'>
-                                {errors.tiempoMinimoMantenimiento || errors.tiempoMaximoMantenimiento}
-                            </FormControl.Feedback>
+                            {/* Mostrar errores para el grupo de tiempos de mantenimiento */}
+                            {(touched.tiempoMinimoMantenimiento && errors.tiempoMinimoMantenimiento) || (touched.tiempoMaximoMantenimiento && errors.tiempoMaximoMantenimiento) ? (
+                                <div className="errores d-block">{errors.tiempoMinimoMantenimiento || errors.tiempoMaximoMantenimiento}</div>
+                            ) : null}
                         </Col>
                     </Row>
 
@@ -262,6 +288,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                         <Col md="6">
                             <Form.Label>Regreso del técnico</Form.Label>
                             <InputGroup className="opcionales">
+                                <Form.Label>Tiempo base</Form.Label>
                                 <FormControl
                                     className='caja-inputs'
                                     type="number"
@@ -271,6 +298,7 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                                     onChange={handleChange}
                                     isInvalid={touched.minutosBaseTecnico && !!errors.minutosBaseTecnico}
                                 />
+                                <Form.Label>Tiempo adicional</Form.Label>
                                 <FormControl
                                     className='caja-inputs'
                                     type="number"
@@ -281,9 +309,10 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                                     isInvalid={touched.minutosRangoTecnico && !!errors.minutosRangoTecnico}
                                 />
                             </InputGroup>
-                            <FormControl.Feedback type="invalid" className='errores'>
-                                {errors.minutosBaseTecnico || errors.minutosRangoTecnico}
-                            </FormControl.Feedback>
+                            {/* Mostrar errores para el grupo de tiempos del técnico */}
+                            {(touched.minutosBaseTecnico && errors.minutosBaseTecnico) || (touched.minutosRangoTecnico && errors.minutosRangoTecnico) ? (
+                                <div className="errores d-block">{errors.minutosBaseTecnico || errors.minutosRangoTecnico}</div>
+                            ) : null}
                         </Col>
                     </Row>
 
@@ -291,57 +320,57 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                     <h1>Simulación</h1>
                     {/* X: Cantidad de minutos a simular */}
                     <Row className='seccion-simulacion'>
-    {/* Cantidad de minutos a simular */}
-    <Col md={4}>
-        <Form.Label className='subtitulo'>Cantidad de minutos a simular</Form.Label>
-        <Form.Control
-            className='caja-inputs'
-            type="number"
-            name="minutosSimulacion"
-            placeholder="Ingrese los minutos"
-            value={values.minutosSimulacion}
-            onChange={handleChange}
-            isInvalid={touched.minutosSimulacion && !!errors.minutosSimulacion}
-        />
-        <Form.Control.Feedback type="invalid" className='errores'>
-            {errors.minutosSimulacion}
-        </Form.Control.Feedback>
-    </Col>
+                        {/* Cantidad de minutos a simular */}
+                        <Col md={4}>
+                            <Form.Label className='subtitulo'>Cantidad de minutos a simular</Form.Label>
+                            <Form.Control
+                                className='caja-inputs'
+                                type="number"
+                                name="minutosSimulacion"
+                                placeholder="Ingrese los minutos"
+                                value={values.minutosSimulacion}
+                                onChange={handleChange}
+                                isInvalid={touched.minutosSimulacion && !!errors.minutosSimulacion}
+                            />
+                            <Form.Control.Feedback type="invalid" className='errores'>
+                                {errors.minutosSimulacion}
+                            </Form.Control.Feedback>
+                        </Col>
 
-    {/* Mostrar desde minuto */}
-    <Col md={4}>
-        <Form.Label className='subtitulo'>Mostrar desde minuto</Form.Label>
-        <Form.Control
-            className='caja-inputs'
-            type="number"
-            name="minutoDesde"
-            placeholder="Ingrese los minutos"
-            value={values.minutoDesde}
-            onChange={handleChange}
-            isInvalid={touched.minutoDesde && !!errors.minutoDesde}
-        />
-        <Form.Control.Feedback type="invalid" className='errores'>
-            {errors.minutoDesde}
-        </Form.Control.Feedback>
-    </Col>
+                        {/* Mostrar desde minuto */}
+                        <Col md={4}>
+                            <Form.Label className='subtitulo'>Mostrar desde minuto</Form.Label>
+                            <Form.Control
+                                className='caja-inputs'
+                                type="number"
+                                name="minutoDesde"
+                                placeholder="Ingrese los minutos"
+                                value={values.minutoDesde}
+                                onChange={handleChange}
+                                isInvalid={touched.minutoDesde && !!errors.minutoDesde}
+                            />
+                            <Form.Control.Feedback type="invalid" className='errores'>
+                                {errors.minutoDesde}
+                            </Form.Control.Feedback>
+                        </Col>
 
-    {/* Cantidad de iteraciones */}
-    <Col md={4}>
-        <Form.Label className='subtitulo'>Cantidad de iteraciones</Form.Label>
-        <Form.Control
-            className='caja-inputs'
-            type="number"
-            name="iteraciones"
-            placeholder="Ingrese las iteraciones"
-            value={values.iteraciones}
-            onChange={handleChange}
-            isInvalid={touched.iteraciones && !!errors.iteraciones}
-        />
-        <Form.Control.Feedback type="invalid" className='errores'>
-            {errors.iteraciones}
-        </Form.Control.Feedback>
-    </Col>
-</Row>
+                        {/* Cantidad de iteraciones */}
+                        <Col md={4}>
+                            <Form.Label className='subtitulo'>Cantidad de iteraciones</Form.Label>
+                            <Form.Control
+                                className='caja-inputs'
+                                type="number"
+                                name="iteraciones"
+                                placeholder="Ingrese las iteraciones"
+                                value={values.iteraciones}
+                                onChange={handleChange}
+                                isInvalid={touched.iteraciones && !!errors.iteraciones}
+                            />
+                            <Form.Control.Feedback type="invalid" className='errores'>
+                                {errors.iteraciones}
+                            </Form.Control.Feedback>
+                        </Col>
+                    </Row>
 
                     {/* Botones */}
                     <div className='boton-grp'>
