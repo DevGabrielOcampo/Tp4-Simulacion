@@ -112,22 +112,23 @@ function ObtenerSimulacion({ setDatosGenerados }) {
             .positive("El número debe ser positivo")
             .moreThan(0, "El número debe ser mayor a 0"),
 
-        minutosRangoTecnico: Yup
+            minutosRangoTecnico: Yup
             .number()
             .required("Se necesita ingresar el rango de minutos")
             .min(0, "Debe ser mayor o igual a 0")
             .test(
-                'minutosRangoTecnico-lessThanOrEqualTo-minutosBaseTecnico',
-                'El "Tiempo adicional" no puede ser mayor que el "Tiempo base"',
-                function (value) {
-                    const { minutosBaseTecnico } = this.parent;
-                    // Solo validar si ambos campos tienen un valor numérico
-                    if (value !== undefined && minutosBaseTecnico !== undefined) {
-                        return value <= minutosBaseTecnico;
-                    }
-                    return true; // Si alguno no tiene valor, la validación pasa (ya Required lo maneja)
+              'minutosRangoTecnico-lessThan-minutosBaseTecnico',
+              'El "Rango de Tiempo" debe ser menor que el "Tiempo base"',
+              function (value) {
+                const { minutosBaseTecnico } = this.parent;
+                // Solo validar si ambos campos tienen un valor numérico
+                if (value !== undefined && minutosBaseTecnico !== undefined) {
+                  return value < minutosBaseTecnico; // cambio clave: < en vez de <=
                 }
+                return true; // Si alguno no tiene valor, la validación pasa (ya Required lo maneja)
+              }
             ),
+          
     });
 
 
@@ -283,37 +284,51 @@ function ObtenerSimulacion({ setDatosGenerados }) {
                         </Col>
                     </Row>
 
+                    <h1>Descanso Tecnico</h1>
                     {/* Regreso del técnico */}
-                    <Row >
-                        <Col md="6">
-                            <Form.Label>Regreso del técnico</Form.Label>
-                            <InputGroup className="opcionales">
-                                <Form.Label>Tiempo base</Form.Label>
-                                <FormControl
-                                    className='caja-inputs'
-                                    type="number"
-                                    name="minutosBaseTecnico"
-                                    placeholder="Tiempo Base"
-                                    value={values.minutosBaseTecnico !== undefined ? values.minutosBaseTecnico : ''}
-                                    onChange={handleChange}
-                                    isInvalid={touched.minutosBaseTecnico && !!errors.minutosBaseTecnico}
-                                />
-                                <Form.Label>Tiempo adicional</Form.Label>
-                                <FormControl
-                                    className='caja-inputs'
-                                    type="number"
-                                    name="minutosRangoTecnico"
-                                    placeholder="Rango de Tiempo"
-                                    value={values.minutosRangoTecnico !== undefined ? values.minutosRangoTecnico : ''}
-                                    onChange={handleChange}
-                                    isInvalid={touched.minutosRangoTecnico && !!errors.minutosRangoTecnico}
-                                />
-                            </InputGroup>
-                            {/* Mostrar errores para el grupo de tiempos del técnico */}
-                            {(touched.minutosBaseTecnico && errors.minutosBaseTecnico) || (touched.minutosRangoTecnico && errors.minutosRangoTecnico) ? (
-                                <div className="errores d-block">{errors.minutosBaseTecnico || errors.minutosRangoTecnico}</div>
-                            ) : null}
+
+                    <Row className='seccion-simulacion'> {/* Usamos la misma clase que en Simulación */}
+                    <Col md={6}>
+                        <Form.Label className='subtitulo'>Tiempo base</Form.Label>
+                        <Form.Control
+                        className='caja-inputs'
+                        type="number"
+                        name="minutosBaseTecnico"
+                        placeholder="Tiempo Base"
+                        value={values.minutosBaseTecnico !== undefined ? values.minutosBaseTecnico : ''}
+                        onChange={handleChange}
+                        isInvalid={touched.minutosBaseTecnico && !!errors.minutosBaseTecnico}
+                        />
+                        <Form.Control.Feedback type="invalid" className='errores'>
+                        {errors.minutosBaseTecnico}
+                        </Form.Control.Feedback>
+                    </Col>
+
+                    <Col md={6}>
+                        <Form.Label className='subtitulo'>Rango de Tiempo</Form.Label>
+                        <Form.Control
+                        className='caja-inputs'
+                        type="number"
+                        name="minutosRangoTecnico"
+                        placeholder="Rango de Tiempo"
+                        value={values.minutosRangoTecnico !== undefined ? values.minutosRangoTecnico : ''}
+                        onChange={handleChange}
+                        isInvalid={touched.minutosRangoTecnico && !!errors.minutosRangoTecnico}
+                        />
+                        <Form.Control.Feedback type="invalid" className='errores'>
+                        {errors.minutosRangoTecnico}
+                        </Form.Control.Feedback>
+                    </Col>
+
+                    {/* Mostrar errores para el grupo de tiempos del técnico si no están individualizados */}
+                    {(touched.minutosBaseTecnico && errors.minutosBaseTecnico) ||
+                    (touched.minutosRangoTecnico && errors.minutosRangoTecnico) ? (
+                        <Col md={12}>
+                        <div className="errores d-block">
+                            {errors.minutosBaseTecnico || errors.minutosRangoTecnico}
+                        </div>
                         </Col>
+                    ) : null}
                     </Row>
 
 

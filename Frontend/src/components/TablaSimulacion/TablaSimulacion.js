@@ -1,17 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import './tabla.css';
-import UltimaIteracionTabla from './UltimaIteracionTabla'; // Import the new component
+import UltimaIteracionTabla from './UltimaIteracionTabla'; // Importa el nuevo componente
 
 const variable = 1500; // No tocar
 
 function TablaSimulacion({ data }) {
-    const numMaquinas = 5; // Assuming fixed number of machines
+    const numMaquinas = 5; // Se asume un número fijo de máquinas
 
-    // --- ROW PAGINATION STATE ---
+    // --- ESTADO DE PAGINACIÓN DE FILAS ---
     const [currentPage, setCurrentPage] = useState(1);
-    const iterationsPerPage = 20; // You want 20 lines per page
+    const iterationsPerPage = 20; // Se quieren 20 líneas por página
 
-    // --- HELPERS FOR RENDERING ---
+    // --- FUNCIONES DE AYUDA PARA LA RENDERIZACIÓN ---
     const renderValue = (value) => {
         if (value === null || value === undefined || value === "" || (typeof value === 'number' && isNaN(value))) {
             return "-";
@@ -32,7 +32,7 @@ function TablaSimulacion({ data }) {
         return value;
     };
 
-    // Helper function to get the machine an alumno is assigned to in a specific row.
+    // Función de ayuda para obtener la máquina a la que está asignado un alumno en una fila específica.
     const getAlumnoMachineInRow = (alumnoId, rowData) => {
         for (let j = 1; j <= numMaquinas; j++) {
             if (rowData[`Alumno M${j}`] === alumnoId) {
@@ -42,13 +42,21 @@ function TablaSimulacion({ data }) {
         return null;
     };
 
-    // --- PROCESSED DATA (Entire Dataset, but limited for display) ---
-    const processedData = useMemo(() => {
+    // --- Identifica la ÚLTIMA ITERACIÓN de toda la simulación ---
+    // Esto se deriva de la prop `data` original, independientemente de la paginación o los límites.
+    const lastIteration = useMemo(() => {
+        return data && data.length > 0 ? data[data.length - 1] : null;
+    }, [data]);
+
+    // --- DATOS PROCESADOS (para la tabla principal, excluyendo la última iteración) ---
+    const processedDataForMainTable = useMemo(() => {
         if (!Array.isArray(data) || data.length === 0) {
             return [];
         }
 
-        const limitedData = data.slice(0, variable);
+        // Excluye la última fila de los datos utilizados para la tabla principal
+        const dataExcludingLast = data.slice(0, data.length - 1);
+        const limitedData = dataExcludingLast.slice(0, variable);
 
         const keysToPropagate = [
             'Próxima Llegada',
@@ -65,7 +73,6 @@ function TablaSimulacion({ data }) {
             keysToPropagate.push(`Fin Inscripción M${i}`);
         }
 
-        // Collect all unique alumno IDs from the LIMITED dataset for processing logic
         let allUniqueAlumnoIdsOverall = new Set();
         limitedData.forEach(row => {
             for (const key in row) {
@@ -121,20 +128,18 @@ function TablaSimulacion({ data }) {
         }, []);
     }, [data, numMaquinas, getAlumnoMachineInRow]);
 
-    // --- ROW PAGINATION LOGIC ---
-    // totalIterations now refers to the *original* number of iterations requested
-    const totalIterationsFromOriginalData = data.length;
-    // totalPages is calculated based on the original data length, to "lie" about the total pages
-    const totalPages = Math.ceil(totalIterationsFromOriginalData / iterationsPerPage);
+    // --- LÓGICA DE PAGINACIÓN DE FILAS ---
+    // totalIterations ahora se refiere al número de iteraciones *para la tabla principal*
+    const totalIterationsForMainTable = processedDataForMainTable.length;
+    const totalPages = Math.ceil(totalIterationsForMainTable / iterationsPerPage);
 
-    // Get the iterations for the current page from the PROCESSED (and potentially limited) data
     const indexOfLastIteration = currentPage * iterationsPerPage;
     const indexOfFirstIteration = indexOfLastIteration - iterationsPerPage;
     
-    // Only slice from processedData, which is already limited to MAX_ITERATIONS_DISPLAYED
-    const currentDisplayedIterations = processedData.slice(indexOfFirstIteration, indexOfLastIteration);
+    // Recorta de processedDataForMainTable, que ya excluye la última iteración original
+    const currentDisplayedIterations = processedDataForMainTable.slice(indexOfFirstIteration, indexOfLastIteration);
 
-    // --- DYNAMIC ALUMNO COLUMNS FOR THE CURRENT PAGE OF ITERATIONS ---
+    // --- COLUMNAS DINÁMICAS DE ALUMNOS PARA LA PÁGINA ACTUAL DE ITERACIONES ---
     const currentDisplayedAlumnoIds = useMemo(() => {
         let idsInCurrentPage = new Set();
         currentDisplayedIterations.forEach(row => {
@@ -151,10 +156,8 @@ function TablaSimulacion({ data }) {
         });
     }, [currentDisplayedIterations]);
 
-    // --- EFFECT TO RESET PAGE IF DATA CHANGES OR CURRENT PAGE BECOMES INVALID ---
+    // --- EFECTO PARA REINICIAR LA PÁGINA SI LOS DATOS CAMBIAN O LA PÁGINA ACTUAL ES INVÁLIDA ---
     useEffect(() => {
-        // If the current page is beyond the *actual* available processed data, or beyond the "faked" total pages,
-        // reset it to the last valid page or 1.
         if (currentPage > totalPages && totalPages > 0) {
             setCurrentPage(totalPages);
         } else if (currentPage === 0 && totalPages > 0) {
@@ -162,20 +165,16 @@ function TablaSimulacion({ data }) {
         }
     }, [currentPage, totalPages]);
 
-    // --- EARLY RETURN FOR NO DATA ---
+    // --- RETORNO TEMPRANO SI NO HAY DATOS ---
     if (!Array.isArray(data) || data.length === 0) {
         return <p>Cargando datos o no hay datos disponibles...</p>;
     }
-
-    // Get the last iteration data for the new table. This should still be from the *original* full data,
-    // as the last iteration of the simulation is important regardless of display limits.
-    const lastIteration = data.length > 0 ? data[data.length - 1] : null;
 
     return (
         <>
             <div className="tabla-container">
                 <h2>Estado de la Simulación</h2>
-                {/* ROW PAGINATION CONTROLS */}
+                {/* CONTROLES DE PAGINACIÓN DE FILAS */}
                 {totalPages > 1 && (
                     <div className="pagination-controls">
                         <button
@@ -187,7 +186,6 @@ function TablaSimulacion({ data }) {
                         <span>Página {currentPage} de {totalPages}</span>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            // Disable if current page is the last "faked" page
                             disabled={currentPage === totalPages}
                         >
                             Siguiente Página
@@ -249,8 +247,10 @@ function TablaSimulacion({ data }) {
                         </thead>
                         <tbody>
                             {currentDisplayedIterations.map((fila, index) => {
+                                // IMPORTANTE: globalIndex debe considerar la fila eliminada para lastIteration
                                 const globalIndex = indexOfFirstIteration + index;
-                                const originalDataRow = data[globalIndex]; // Access original row for non-propagated values
+                                // Accede a originalDataRow del array `data` completo, ajustando por la fila final excluida
+                                const originalDataRow = data[globalIndex]; 
 
                                 const isLlegadaEvent = fila.Evento.startsWith("Llegada Alumno");
                                 const rndLlegada = isLlegadaEvent ? originalDataRow?.['RND Llegada'] : null;
@@ -337,7 +337,6 @@ function TablaSimulacion({ data }) {
 
                                         {currentDisplayedAlumnoIds.map(alumnoId => {
                                             const estado = fila[`Estado ${alumnoId}`]; // Estado ya procesado
-                                            // The machine assignment is part of the original data that caused the event
                                             const maquina = originalDataRow ? getAlumnoMachineInRow(alumnoId, originalDataRow) : null; 
 
                                             const isAlumnoActiveInCurrentRow = (estado !== null && estado !== undefined && estado !== "") || (maquina !== null);
@@ -356,7 +355,7 @@ function TablaSimulacion({ data }) {
                     </table>
                 </div>
             </div>
-            {/* Render the new table for the last iteration */}
+            {/* Renderiza la nueva tabla para la última iteración */}
             {lastIteration && (
                 <UltimaIteracionTabla
                     lastIterationData={lastIteration}
