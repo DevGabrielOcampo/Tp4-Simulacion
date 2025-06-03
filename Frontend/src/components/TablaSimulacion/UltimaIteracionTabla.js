@@ -29,9 +29,6 @@ function UltimaIteracionTabla({ lastIterationData, numMaquinas }) {
 
     const isLlegadaEvent = lastIterationData.Evento.startsWith("Llegada Alumno");
 
-    // We need to pass the originalDataRow to UltimaIteracionTabla if it's not already merged into lastIterationData
-    // For simplicity, let's assume lastIterationData already contains the necessary RND/Tiempo values for the last row
-    // if not, you'd need to adjust how you pass data from TablaSimulacion.
     const rndLlegada = isLlegadaEvent ? lastIterationData['RND Llegada'] : null;
     const tiempoLlegada = isLlegadaEvent ? lastIterationData['Tiempo Llegada'] : null;
 
@@ -48,7 +45,6 @@ function UltimaIteracionTabla({ lastIterationData, numMaquinas }) {
         }
         return null;
     };
-
 
     return (
         <div className="tabla-container ultima-iteracion-tabla">
@@ -68,6 +64,9 @@ function UltimaIteracionTabla({ lastIterationData, numMaquinas }) {
                             <th colSpan="4">DETALLE MANTENIMIENTO</th>
                             <th colSpan="4">ESTADÍSTICAS TÉCNICO</th>
                             <th rowSpan="2">COLA DE ALUMNOS</th>
+                            <th rowSpan="2">CONTADOR ALUMNOS</th>
+                            <th rowSpan="2">CONTADOR ABANDONOS</th>
+                            <th rowSpan="2">% ABANDONOS</th>
                             {[...Array(numMaquinas)].map((_, i) => (
                                 <th key={`maquina-estado-header-${i + 1}`} rowSpan="2">Estado Máquina {i + 1}</th>
                             ))}
@@ -94,6 +93,7 @@ function UltimaIteracionTabla({ lastIterationData, numMaquinas }) {
                             <th>Tiempo Ocioso Tec.</th>
                             <th>Prom. Tiempo Ocioso Tec.</th>
                             <th>% Tiempo Ocioso Tec.</th>
+
                         </tr>
                     </thead>
                     <tbody>
@@ -152,13 +152,26 @@ function UltimaIteracionTabla({ lastIterationData, numMaquinas }) {
                                 )}%
                             </td>
 
-                            <td>{renderValue(lastIterationData['Cola'])}</td>
+                            <td>{renderIntValue(lastIterationData['Cola'])}</td>
+                            
+                            {/* CELDAS DE DATOS PARA CONTADORES (Mantener estos) */}
+                            <td>{renderIntValue(lastIterationData['Contador Alumnos'])}</td>
+                            <td>{renderIntValue(lastIterationData['Contador Abandonos'])}</td>
+                            <td>
+                                {renderValue(
+                                    (parseFloat(lastIterationData['Contador Alumnos']) > 0)
+                                        ? (parseFloat(lastIterationData['Contador Abandonos']) / parseFloat(lastIterationData['Contador Alumnos'])) * 100
+                                        : 0
+                                )}%
+                            </td>
+                            {/* FIN CELDAS DE DATOS */}
 
                             {[...Array(numMaquinas)].map((_, i) => (
                                 <td key={`estado-maquina-${i + 1}`}>
                                     {renderValue(lastIterationData[`Máquina ${i + 1}`])}
                                 </td>
                             ))}
+                            {/* ¡Eliminado: Ya no se muestran los estados individuales de los alumnos aquí! */}
                         </tr>
                     </tbody>
                 </table>

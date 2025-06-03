@@ -73,7 +73,7 @@
 }
 
 .boton-copiar {
-    background-color: #00b894;
+    background-color: #6c5ce7;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -84,6 +84,7 @@
     margin-bottom: 15px;
     box-shadow: 0 3px 6px rgba(0,0,0,0.1);
     font-family: 'Segoe UI', sans-serif;
+    margin: 10px;
 }
 
 .boton-copiar:hover {

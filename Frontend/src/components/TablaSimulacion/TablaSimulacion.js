@@ -64,6 +64,8 @@ function TablaSimulacion({ data }) {
             'Acum. Tiempo Trabajado Tec.',
             'Tiempo Ocioso Tec.',
             'Cola',
+            'Contador Alumnos', // Added for propagation
+            'Contador Abandonos', // Added for propagation
             'Fin Mantenimiento',
             'Máquina Mant.',
         ];
@@ -178,6 +180,7 @@ function TablaSimulacion({ data }) {
                 {totalPages > 1 && (
                     <div className="pagination-controls">
                         <button
+                            className='boton-copiar'
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
                         >
@@ -185,6 +188,7 @@ function TablaSimulacion({ data }) {
                         </button>
                         <span>Página {currentPage} de {totalPages}</span>
                         <button
+                            className='boton-copiar'
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                             disabled={currentPage === totalPages}
                         >
@@ -208,6 +212,9 @@ function TablaSimulacion({ data }) {
                                 <th colSpan="4">DETALLE MANTENIMIENTO</th>
                                 <th colSpan="4">ESTADÍSTICAS TÉCNICO</th>
                                 <th rowSpan="2">COLA DE ALUMNOS</th>
+                                <th rowSpan="2">CONTADOR ALUMNOS</th> {/* Nuevo encabezado */}
+                                <th rowSpan="2">CONTADOR ABANDONOS</th> {/* Nuevo encabezado */}
+                                <th rowSpan="2">% ABANDONOS</th> {/* Nuevo encabezado */}
                                 {[...Array(numMaquinas)].map((_, i) => (
                                     <th key={`maquina-estado-header-${i + 1}`} rowSpan="2">Estado Máquina {i + 1}</th>
                                 ))}
@@ -237,6 +244,7 @@ function TablaSimulacion({ data }) {
                                 <th>Tiempo Ocioso Tec.</th>
                                 <th>Prom. Tiempo Ocioso Tec.</th>
                                 <th>% Tiempo Ocioso Tec.</th>
+                                {/* No subheaders needed for the new columns as they have rowSpan="2" */}
                                 {currentDisplayedAlumnoIds.map(alumnoId => (
                                     <React.Fragment key={`alumno-subheader-${alumnoId}`}>
                                         <th>Estado</th>
@@ -248,8 +256,9 @@ function TablaSimulacion({ data }) {
                         <tbody>
                             {currentDisplayedIterations.map((fila, index) => {
                                 // IMPORTANTE: globalIndex debe considerar la fila eliminada para lastIteration
+                                // y la paginación para obtener la fila correcta de los datos originales.
                                 const globalIndex = indexOfFirstIteration + index;
-                                // Accede a originalDataRow del array `data` completo, ajustando por la fila final excluida
+                                // Accede a originalDataRow del array `data` completo (no el `processedDataForMainTable`)
                                 const originalDataRow = data[globalIndex]; 
 
                                 const isLlegadaEvent = fila.Evento.startsWith("Llegada Alumno");
@@ -328,6 +337,18 @@ function TablaSimulacion({ data }) {
                                         </td>
 
                                         <td>{renderIntValue(fila['Cola'])}</td>
+                                        
+                                        {/* NUEVAS CELDAS DE DATOS */}
+                                        <td>{renderIntValue(fila['Contador Alumnos'])}</td>
+                                        <td>{renderIntValue(fila['Contador Abandonos'])}</td>
+                                        <td>
+                                            {renderValue(
+                                                (parseFloat(fila['Contador Alumnos']) > 0)
+                                                    ? (parseFloat(fila['Contador Abandonos']) / parseFloat(fila['Contador Alumnos'])) * 100
+                                                    : 0
+                                            )}%
+                                        </td>
+                                        {/* FIN NUEVAS CELDAS DE DATOS */}
 
                                         {[...Array(numMaquinas)].map((_, i) => (
                                             <td key={`estado-maquina-${i + 1}`}>

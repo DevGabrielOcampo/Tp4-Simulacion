@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "http://localhost:3000")
 public class SimulacionApplication {
 
+
     public static void main(String[] args) {
         SpringApplication.run(SimulacionApplication.class, args);
     }
@@ -126,11 +127,13 @@ class Simulacion implements Serializable {
     private int cola;
     private double tiempoActual;
     private int contadorAlumnos;
+    private int contadorAbandonos;
     private Map<String, EstadoAlumno> estadoAlumnos;
     private List<String> alumnosEnCola;
     private Double proximoRegresoTecnico;
     private int proximaComputadoraMantenimiento;
     private double proximaLlegada;
+
 
     // Estadísticas del técnico
     private double tiempoOciosoTecnicoAcumulado;
@@ -165,6 +168,7 @@ class Simulacion implements Serializable {
         this.cola = 0;
         this.tiempoActual = 0;
         this.contadorAlumnos = 0;
+        this.contadorAbandonos = 0;
         this.estadoAlumnos = new HashMap<>();
         this.alumnosEnCola = new ArrayList<>();
         this.proximoRegresoTecnico = null;
@@ -290,6 +294,7 @@ class Simulacion implements Serializable {
         tiempoActual = 0;
         proximaLlegada = tiempoLlegada;
         contadorAlumnos = 0;
+        contadorAbandonos = 0;
 
         tiempoOciosoTecnicoAcumulado = 0.0;
         tiempoTrabajadoTecnicoAcumulado = 0.0;
@@ -379,7 +384,11 @@ class Simulacion implements Serializable {
             double duracionIntervalo = proximoTiempoEvento - tiempoActual;
 
             if (duracionIntervalo > 0) {
-                if (!isTechnicianBusyMaintaining()) {
+                // Si el técnico está ocupado haciendo mantenimiento, ese es tiempo trabajado.
+                if (isTechnicianBusyMaintaining()) {
+                    tiempoTrabajadoTecnicoAcumulado += duracionIntervalo;
+                } else {
+                    // Si el técnico no está en mantenimiento, es tiempo ocioso (si no tiene un regreso programado o ya regresó)
                     if (proximoRegresoTecnico == null || proximoRegresoTecnico <= tiempoActual) {
                         tiempoOciosoTecnicoAcumulado += duracionIntervalo;
                     }
@@ -461,6 +470,8 @@ class Simulacion implements Serializable {
 
             estado.put("Próxima Llegada", Math.round(proximaLlegada * 100.0) / 100.0);
             estado.put("Próximo Inicio Mantenimiento", proximoRegresoTecnico != null ? Math.round(proximoRegresoTecnico * 100.0) / 100.0 : null);
+            estado.put("Contador Alumnos", this.contadorAlumnos);
+            estado.put("Contador Abandonos", this.contadorAbandonos);
 
             estado.put("Tiempo Ocioso Tec.", Math.round(tiempoOciosoTecnicoAcumulado * 100.0) / 100.0);
             estado.put("Promedio Tiempo Ocioso Tec.", cantidadMantenimientosCompletados > 0 ? Math.round((tiempoOciosoTecnicoAcumulado / cantidadMantenimientosCompletados) * 100.0) / 100.0 : 0.0);
@@ -489,6 +500,8 @@ class Simulacion implements Serializable {
 
         if (cola >= 5) {
             actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA); // El alumno se va
+            this.contadorAbandonos++;
+            this.contadorAlumnos++;
             estado.put("Máquina", null); // No ocupa máquina
             estado.put("RND Inscripción", null);
             estado.put("Tiempo Inscripción", null);
@@ -520,11 +533,6 @@ class Simulacion implements Serializable {
     private void procesarFinMantenimiento(Map<String, Object> equipo, Map<String, Object> estado) {
         estado.put("Evento", "Fin Mantenimiento M" + equipo.get("id"));
 
-        double prevMantDuration = (double) equipo.getOrDefault("duracion_mantenimiento_actual", 0.0);
-        if (prevMantDuration > 0) {
-            tiempoTrabajadoTecnicoAcumulado += prevMantDuration;
-            cantidadMantenimientosCompletados++;
-        }
 
         equipo.put("estado", EstadoEquipo.LIBRE);
         equipo.put("fin_mantenimiento", null);
