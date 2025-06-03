@@ -327,7 +327,7 @@ function TablaSimulacion({ data }) {
                                             )}%
                                         </td>
 
-                                        <td>{renderValue(fila['Cola'])}</td>
+                                        <td>{renderIntValue(fila['Cola'])}</td>
 
                                         {[...Array(numMaquinas)].map((_, i) => (
                                             <td key={`estado-maquina-${i + 1}`}>
