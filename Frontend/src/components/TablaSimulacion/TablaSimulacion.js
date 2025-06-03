@@ -56,7 +56,7 @@ function TablaSimulacion({ data }) {
 
         // Excluye la última fila de los datos utilizados para la tabla principal
         const dataExcludingLast = data.slice(0, data.length - 1);
-        const limitedData = dataExcludingLast.slice(0, variable);
+        const limitedData = dataExcludingLast.slice(0, variable); // Aquí se limita a 'variable' (1500)
 
         const keysToPropagate = [
             'Próxima Llegada',
@@ -131,14 +131,15 @@ function TablaSimulacion({ data }) {
     }, [data, numMaquinas, getAlumnoMachineInRow]);
 
     // --- LÓGICA DE PAGINACIÓN DE FILAS ---
-    // totalIterations ahora se refiere al número de iteraciones *para la tabla principal*
-    const totalIterationsForMainTable = processedDataForMainTable.length;
-    const totalPages = Math.ceil(totalIterationsForMainTable / iterationsPerPage);
+    // ¡Aquí está la "mentira"! totalIterations se basa en la longitud total de 'data'.
+    const totalIterationsFromOriginalData = data.length; 
+    const totalPages = Math.ceil((totalIterationsFromOriginalData-1) / iterationsPerPage);
+
 
     const indexOfLastIteration = currentPage * iterationsPerPage;
     const indexOfFirstIteration = indexOfLastIteration - iterationsPerPage;
     
-    // Recorta de processedDataForMainTable, que ya excluye la última iteración original
+    // Recorta de processedDataForMainTable, que ya excluye la última iteración original y está limitada por 'variable'
     const currentDisplayedIterations = processedDataForMainTable.slice(indexOfFirstIteration, indexOfLastIteration);
 
     // --- COLUMNAS DINÁMICAS DE ALUMNOS PARA LA PÁGINA ACTUAL DE ITERACIONES ---
@@ -160,6 +161,7 @@ function TablaSimulacion({ data }) {
 
     // --- EFECTO PARA REINICIAR LA PÁGINA SI LOS DATOS CAMBIAN O LA PÁGINA ACTUAL ES INVÁLIDA ---
     useEffect(() => {
+
         if (currentPage > totalPages && totalPages > 0) {
             setCurrentPage(totalPages);
         } else if (currentPage === 0 && totalPages > 0) {
@@ -186,10 +188,12 @@ function TablaSimulacion({ data }) {
                         >
                             Anterior Página
                         </button>
+                        {/* Se muestra el número total de páginas basado en data.length */}
                         <span>Página {currentPage} de {totalPages}</span>
                         <button
                             className='boton-copiar'
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            
                             disabled={currentPage === totalPages}
                         >
                             Siguiente Página
@@ -212,9 +216,9 @@ function TablaSimulacion({ data }) {
                                 <th colSpan="4">DETALLE MANTENIMIENTO</th>
                                 <th colSpan="4">ESTADÍSTICAS TÉCNICO</th>
                                 <th rowSpan="2">COLA DE ALUMNOS</th>
-                                <th rowSpan="2">CONTADOR ALUMNOS</th> {/* Nuevo encabezado */}
-                                <th rowSpan="2">CONTADOR ABANDONOS</th> {/* Nuevo encabezado */}
-                                <th rowSpan="2">% ABANDONOS</th> {/* Nuevo encabezado */}
+                                <th rowSpan="2">CONTADOR ALUMNOS</th>
+                                <th rowSpan="2">CONTADOR ABANDONOS</th>
+                                <th rowSpan="2">% ABANDONOS</th>
                                 {[...Array(numMaquinas)].map((_, i) => (
                                     <th key={`maquina-estado-header-${i + 1}`} rowSpan="2">Estado Máquina {i + 1}</th>
                                 ))}
@@ -244,7 +248,6 @@ function TablaSimulacion({ data }) {
                                 <th>Tiempo Ocioso Tec.</th>
                                 <th>Prom. Tiempo Ocioso Tec.</th>
                                 <th>% Tiempo Ocioso Tec.</th>
-                                {/* No subheaders needed for the new columns as they have rowSpan="2" */}
                                 {currentDisplayedAlumnoIds.map(alumnoId => (
                                     <React.Fragment key={`alumno-subheader-${alumnoId}`}>
                                         <th>Estado</th>

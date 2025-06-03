@@ -18,7 +18,7 @@
 .tabla-simulacion {
     width: 100%;
     border-collapse: separate;
-    border-spacing: 0;
+    border-spacing: 10;
     font-size: 15px;
 }
 
@@ -36,7 +36,7 @@
 
 .tabla-simulacion thead tr:nth-child(2) th {
     position: sticky;
-    top: 48px;
+    top: 46px;
     z-index: 999;
     background-color: #a29bfe;
     color: white;
@@ -88,7 +88,7 @@
 }
 
 .boton-copiar:hover {
-    background-color: #00a884;
+    background-color: #a29bfe;
     transform: translateY(-2px);
     box-shadow: 0 5px 10px rgba(0,0,0,0.15);
 }

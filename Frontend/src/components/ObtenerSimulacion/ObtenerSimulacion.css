@@ -67,15 +67,21 @@
 }
 
 .boton {
-    background-color: #007BFF;
+    background-color: #6c5ce7;
+    color: white;
     border: none;
     padding: 10px 25px;
-    font-weight: 500;
+    font-size: 20px;
+    border-radius: 8px;
+    cursor: pointer;
     transition: all 0.3s ease;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    font-family: 'Segoe UI', sans-serif;
 }
 
 .boton:hover {
-    background-color: #218838;
+    background-color: #a29bfe;
     transform: translateY(-2px);
 }
 
@@ -86,10 +92,16 @@
 
 .boton-limpiar {
     background-color: #6c757d;
+    color: white;
     border: none;
     padding: 10px 25px;
-    font-weight: 500;
+    font-size: 20px;
+    border-radius: 8px;
+    cursor: pointer;
     transition: all 0.3s ease;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    font-family: 'Segoe UI', sans-serif;
 }
 
 .boton-limpiar:hover {

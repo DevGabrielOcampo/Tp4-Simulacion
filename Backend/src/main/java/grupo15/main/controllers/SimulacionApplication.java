@@ -501,7 +501,6 @@ class Simulacion implements Serializable {
         if (cola >= 5) {
             actualizarEstadoAlumno(idAlumno, EstadoAlumno.ATENCION_FINALIZADA); // El alumno se va
             this.contadorAbandonos++;
-            this.contadorAlumnos++;
             estado.put("Máquina", null); // No ocupa máquina
             estado.put("RND Inscripción", null);
             estado.put("Tiempo Inscripción", null);
